@@ -3,5 +3,5 @@ stages:
 
 dco_check:
   stage: build
-  script: -
+  script: \
     espeak $CI_COMMIT_MESSAGE
