@@ -54,3 +54,6 @@ Some MonoGame extensions, such as IMGUI, are compiled from source as part of the
 
 ### Game assets
 All game assets are (and must be) placed in `src/SociallyDistant/Content`. This directory is managed by AutoPipeline and some custom MSBuild tasks.
+
+## Continuous integration
+Currently, CI/CD is set up for the Windows and Linux versions of the game. Windows builds are done on AppVeyor, while Linux builds are built locally on Ritchie's workstation.
