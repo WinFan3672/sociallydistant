@@ -12,6 +12,7 @@ setup_mgfxc:
   script: >
     ./mgfxc-wine-setup.sh
 
+# Makes sure the base game compiles.
 build_base:
   stage: build
   script: >
@@ -21,6 +22,7 @@ publish_linux:
   stage: deploy
   script: >
     mkdir bin;
+    dotnet build -c release src/SociallyDistant;
     dotnet publish src/SociallyDistant -r linux-x64 -c release --self-contained --no-build -o bin/linux-x64;
   artifacts:
     name: socially-distant-linux-amd64-release
@@ -33,6 +35,7 @@ publish_windows:
   stage: deploy
   script: >  
     mkdir bin;
+    dotnet build -c release src/SociallyDistant;
     dotnet publish src/SociallyDistant -r win-x64 -c release --no-build --self-contained -o bin/windows-x64;
   artifacts:
     name: socially-distant-win64-release
