@@ -4,7 +4,7 @@ stages:
 dco_check:
   stage: build
   script:
-   - "# forcibly fail the job, a rule will skip this job of the commit message looked like the DCO was acknowledged.""
+   - "# forcibly fail the job, a rule will skip this job of the commit message looked like the DCO was acknowledged."
    - "exit 420"
   rules:
    - if: $CI_COMMIT_MESSAGE=~ /Signed\-off\-by\:\ $CI_COMMIT_AUTHOR/
