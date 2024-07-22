@@ -4,4 +4,4 @@ stages:
 dco_check:
   stage: build
   script:
-    sudo -u ritchie espeak $CI_COMMIT_MESSAGE RITCHIE RITCHIE
+    echo $CI_COMMIT_MESSAGE RITCHIE RITCHIE
