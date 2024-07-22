@@ -3,5 +3,5 @@ stages:
 
 dco_check:
   stage: build
-  script: \
-    echo $CI_COMMIT_MESSAGE RITCHIE RITCHIE
+  script:
+    sudo -u ritchie espeak $CI_COMMIT_MESSAGE RITCHIE RITCHIE
