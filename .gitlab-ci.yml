@@ -7,5 +7,5 @@ dco_check:
    - # forcibly fail the job, a rule will skip this job of the commit message looked like the DCO was acknowledged.
    - exit 420
   rules:
-   - if: $CI_COMMIT_MESSAGE=~ /Signed\-off\-by\:\ $CI_COMMIT_AUTHOR)/
+   - if: $CI_COMMIT_MESSAGE=~ /Signed\-off\-by\:\ $CI_COMMIT_AUTHOR/
      when: never
