@@ -5,3 +5,16 @@ dco_check:
   stage: build
   script: >
     echo $CI_COMMIT_MESSAGE | grep "Signed-off-by: $CI_COMMIT_AUTHOR"
+
+setup_mgfxc:
+  stage: build
+  script: >
+    ./mgfxc-wine-setup.sh
+
+build_base:
+  stage: build
+  script: >
+    dotnet build src
+  artifacts:
+    paths:
+      - src/SociallyDistant/bin/Debug/net8.0
