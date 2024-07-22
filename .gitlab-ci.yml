@@ -4,4 +4,4 @@ stages:
 dco_check:
   stage: build
   script:
-    echo $CI_COMMIT_MESSAGE RITCHIE RITCHIE
+    echo $CI_COMMIT_MESSAGE | grep "Signed-off-by: $CI_COMMIT_AUTHOR"
