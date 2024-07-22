@@ -22,25 +22,9 @@ publish_linux:
   stage: deploy
   script: >
     mkdir bin;
-    dotnet build -c release src;
+    dotnet build -c release -r linux-x64 src;
     dotnet publish src/SociallyDistant -r linux-x64 -c release --self-contained --no-build -o bin/linux-x64;
   artifacts:
     name: socially-distant-linux-amd64-release
     paths:
       - bin/linux-x64
-
-# Note: The no-build flag is not just an optimization. The runner runs Arch Linux, not Windows.
-# So we skip build during publish, otherwise custom MSBuild tasks won't run as a result of Linux trying to run a Windows binary.
-publish_windows:
-  stage: deploy
-  script: >  
-    mkdir bin;
-    dotnet build -c release src;
-    dotnet publish src/SociallyDistant -r win-x64 -c release --no-build --self-contained -o bin/windows-x64;
-  artifacts:
-    name: socially-distant-win64-release
-    paths:
-      - bin/windows-x64
-
-
-
