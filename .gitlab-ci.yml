@@ -22,8 +22,7 @@ publish_linux:
   stage: deploy
   script: >
     mkdir bin;
-    dotnet build -c release -r linux-x64 src;
-    dotnet publish src/SociallyDistant -r linux-x64 -c release --self-contained --no-build -o bin/linux-x64;
+    dotnet publish src/SociallyDistant -r linux-x64 -c release --self-contained -o bin/linux-x64;
   artifacts:
     name: socially-distant-linux-amd64-release
     paths:
