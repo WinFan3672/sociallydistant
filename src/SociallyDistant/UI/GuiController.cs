@@ -151,6 +151,11 @@ public class GuiController : GameComponent,
         }
     }
 
+    public IShellOverlay CreateOverlay()
+    {
+        return new ShellOverlay(this.guiService);
+    }
+
     public bool OpenProgram(
         IProgram programToOpen,
         string[] arguments,

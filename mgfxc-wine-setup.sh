@@ -29,6 +29,11 @@ DOTNET_URL="https://download.visualstudio.microsoft.com/download/pr/adeab8b1-1c4
 curl $DOTNET_URL --output "$SCRIPT_DIR/dotnet-sdk.zip"
 7z x "$SCRIPT_DIR/dotnet-sdk.zip" -o"$WINEPREFIX/drive_c/windows/system32/"
 
+# Once more to grab .NET 8
+DOTNET_URL="https://download.visualstudio.microsoft.com/download/pr/93d39941-31b3-4c50-b124-0de50d464fe5/93a0dddb827811ff50586cb361f613b0/dotnet-sdk-8.0.303-win-x64.zip"
+curl $DOTNET_URL --output "$SCRIPT_DIR/dotnet-sdk-8.zip"
+7z x "$SCRIPT_DIR/dotnet-sdk-8.zip" -o"$WINEPREFIX/drive_c/windows/system32/"
+
 # get d3dcompiler_47
 FIREFOX_URL="https://download-installer.cdn.mozilla.net/pub/firefox/releases/62.0.3/win64/ach/Firefox%20Setup%2062.0.3.exe"
 curl $FIREFOX_URL --output "$SCRIPT_DIR/firefox.exe"

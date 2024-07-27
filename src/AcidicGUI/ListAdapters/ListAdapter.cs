@@ -53,6 +53,8 @@ public abstract class ListAdapter<TContainerWidget, TViewHolder> : Widget,
         }
         
         this.containerWidget.Visibility = Visibility.Visible;
+
+        this.InvalidateLayout();
     }
 
     public void NotifyItemChanged(int index)

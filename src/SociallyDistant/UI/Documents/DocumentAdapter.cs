@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Reflection.Metadata;
 using AcidicGUI.ListAdapters;
 using AcidicGUI.Widgets;
 using Serilog;
 using SociallyDistant.Core;
+using SociallyDistant.Core.Core.Events;
 using SociallyDistant.Core.Core.WorldData.Data;
 using SociallyDistant.Core.Missions;
 using SociallyDistant.Core.Shell;
@@ -17,12 +19,14 @@ public class DocumentAdapter<TContainerWidget> : Widget
 {
     private readonly RecyclableWidgetList<TContainerWidget> recyclables = new();
     private readonly List<DocumentElement>                  elements    = new();
+    private          IDisposable?                           missionEventListener;
 
     public TContainerWidget Container => recyclables.Container;
     
     public DocumentAdapter()
     {
         Children.Add(recyclables);
+        missionEventListener = EventBus.Listen<MissionEvent>(OnMissionEvent);
     }
 
     public void ShowDocument(IEnumerable<DocumentElement> document)
@@ -112,5 +116,13 @@ public class DocumentAdapter<TContainerWidget> : Widget
             Log.Warning(ex.ToString());
             return false;
         }
+    }
+
+    private void OnMissionEvent(MissionEvent missionEvent)
+    {
+        if (this.elements.All(x => x.ElementType != DocumentElementType.Mission))
+            return;
+
+        RefreshDocument();
     }
 }

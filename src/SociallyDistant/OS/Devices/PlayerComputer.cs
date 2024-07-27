@@ -31,6 +31,7 @@ namespace SociallyDistant.OS.Devices
 		private ISystemProcess? systemd;
 		private PlayerInfo playerInfo;
 
+		public string? NarrativeId => "player";
 		public bool IsPlayer => true;
 
 		/// <inheritdoc />

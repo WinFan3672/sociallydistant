@@ -60,6 +60,7 @@ namespace SociallyDistant
 			RegisterGlobalCommands();
 
 			// Game data
+			Context.ContentManager.AddContentGenerator(new MissionTaskFinder());
 			Context.ContentManager.AddContentGenerator(new LifepathGenerator());
 			Context.ContentManager.AddContentGenerator(new CommandFinder(Context));
 			Context.ContentManager.AddContentGenerator(new LocalGameDataSource());

@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <RootNamespace>SociallyDistant.Core</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>

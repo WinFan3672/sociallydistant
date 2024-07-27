@@ -10,6 +10,7 @@ namespace SociallyDistant.Core.Core.Scripting
 		private readonly IUser user;
 		private readonly IFileSystem hypervisorFileSystem = new HypervisorFileSystem();
 
+		public string? NarrativeId => null;
 		public bool IsPlayer => true;
 
 		/// <inheritdoc />

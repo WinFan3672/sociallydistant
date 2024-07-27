@@ -57,6 +57,10 @@ namespace SociallyDistant.GameplaySystems.NonPlayerComputers
 			}
 		}
 
+		public uint PublicAddress => actualConnection?.PublicAddress ?? LoopbackAddress;
+		public uint LocalAddress => actualConnection?.LocalAddress ?? LoopbackAddress;
+		public uint LoopbackAddress => NetUtility.LoopbackAddress;
+
 		/// <inheritdoc />
 		public Guid Identifier => actualConnection?.Identifier ?? id;
 

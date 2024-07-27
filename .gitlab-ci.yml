@@ -1,0 +1,41 @@
+stages:
+  - build
+  - deploy
+
+dco_check:
+  stage: build
+  script: >
+    echo $CI_COMMIT_MESSAGE | grep "Signed-off-by: $CI_COMMIT_AUTHOR"
+
+setup_mgfxc:
+  stage: build
+  script: >
+    ./mgfxc-wine-setup.sh
+
+# Makes sure the base game compiles.
+build_base:
+  stage: build
+  script: >
+    dotnet build -c release src
+
+publish_linux:
+  stage: deploy
+  script: >
+    mkdir bin;
+    dotnet publish src/SociallyDistant -r linux-x64 -c release --self-contained -o bin/linux-x64;
+  artifacts:
+    name: socially-distant-linux-amd64-release
+    paths:
+      - bin/linux-x64
+
+publish_windows:
+  stage: deploy
+  tags: [windows]
+  script: >
+    mkdir bin;
+    dotnet publish .\src\SociallyDistant -r win-x64 -c release --self-contained -o .\bin\windows-x64;
+  artifacts:
+    name: socially-distant-windows-x64-release
+    paths:
+      - bin/windows-x64
+

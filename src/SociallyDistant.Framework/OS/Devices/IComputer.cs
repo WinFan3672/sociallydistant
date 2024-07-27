@@ -7,6 +7,8 @@ namespace SociallyDistant.Core.OS.Devices
 {
 	public interface IComputer
 	{
+		string? NarrativeId { get; }
+		
 		bool IsPlayer { get; }
 		
 		string Name { get; }

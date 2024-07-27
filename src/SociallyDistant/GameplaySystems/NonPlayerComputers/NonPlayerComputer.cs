@@ -29,7 +29,8 @@ namespace SociallyDistant.GameplaySystems.NonPlayerComputers
 
 		private DeviceCoordinator DeviceCoordinator => game.DeviceCoordinator;
 		private IWorldManager World => game.WorldManager;
-		
+
+		public string? NarrativeId { get; private set; }
 		public bool IsPlayer => false;
 
 		/// <inheritdoc />
@@ -111,6 +112,7 @@ namespace SociallyDistant.GameplaySystems.NonPlayerComputers
 
 		public void UpdateWorldData(WorldComputerData data)
 		{
+			NarrativeId = data.NarrativeId;
 			worldData = data;
 			RebuildVfs();
 

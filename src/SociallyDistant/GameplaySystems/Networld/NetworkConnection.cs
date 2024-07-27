@@ -16,12 +16,6 @@ namespace SociallyDistant.GameplaySystems.Networld
 		private DeviceNode deviceNode;
 		private const ushort MaximumOutboundConnections = 1024;
 		private readonly Dictionary<ushort, Listener> listeners = new Dictionary<ushort, Listener>();
-
-		public string LocalInterfaceName => deviceNode.NetworkInterface.Name;
-		public string LoopbackInterfaceName => deviceNode.LoopbackInterface.Name;
-		public string LocalAddress => NetUtility.GetNetworkAddressString(deviceNode.NetworkInterface.NetworkAddress);
-		public string SubnetMask => NetUtility.GetNetworkAddressString(deviceNode.NetworkInterface.SubnetMask);
-		public string LoopbackAddress => NetUtility.GetNetworkAddressString(deviceNode.LoopbackInterface.NetworkAddress);
 		
 		
 		public NetworkConnection(DeviceNode node, IHostNameResolver hostResolver)
@@ -59,6 +53,10 @@ namespace SociallyDistant.GameplaySystems.Networld
 			mainInfo.DefaultGateway = NetUtility.GetNetworkAddressString(deviceNode.DefaultGateway);
 			yield return mainInfo;
 		}
+
+		public uint PublicAddress => this.deviceNode.LocalAreaNetworkAddress;
+		public uint LocalAddress => deviceNode.NetworkInterface.NetworkAddress;
+		public uint LoopbackAddress => NetUtility.LoopbackAddress;
 
 		/// <inheritdoc />
 		public Guid Identifier => id;

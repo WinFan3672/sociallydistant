@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using SociallyDistant.Core.OS.Devices;
+using SociallyDistant.Core.OS.FileSystems;
 
 namespace SociallyDistant.Core.OS.Tasks
 {
@@ -11,6 +12,10 @@ namespace SociallyDistant.Core.OS.Tasks
 		IEnumerable<ISystemProcess> GetChildProcesses(ISystemProcess parent);
 
 		IInitProcess SetUpComputer(IComputer computer);
+
+		IComputer? GetNarrativeComputer(string narrativeId);
+		
+		IVirtualFileSystem WorldFileSystem { get; }
 	}
 
 	public interface IShellScript

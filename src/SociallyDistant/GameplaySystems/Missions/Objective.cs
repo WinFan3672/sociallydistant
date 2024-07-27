@@ -6,6 +6,8 @@ namespace SociallyDistant.GameplaySystems.Missions
 	{
 		private readonly ObjectiveController objectiveController;
 
+		public ObjectiveKind Kind => objectiveController.Kind;
+        
 		/// <inheritdoc />
 		public string Name => objectiveController.Name;
 

@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.Events;
 using SociallyDistant.Core.OS.Devices;
 
 namespace SociallyDistant.Core.OS.FileSystems
@@ -143,6 +144,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 				throw new DirectoryNotFoundException();
 
 			parentEntry.TryCreateDirectory(this.user, filename, out _);
+			SendEvent(FileSystemEventType.CreateDirectory, path);
 		}
 
 		public void DeleteFile(string path)
@@ -153,6 +155,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (file == null)
 				throw new FileNotFoundException();
 
+			SendEvent(FileSystemEventType.DeleteFile, path);
 			file.TryDelete(this.user);
 		}
 
@@ -164,6 +167,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (directory == null)
 				throw new DirectoryNotFoundException();
 
+			SendEvent(FileSystemEventType.DeleteDirectory, path);
 			directory.TryDelete(user);
 		}
 
@@ -178,6 +182,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (!file.TryOpenRead(this.user, out Stream? stream) || stream == null)
 				throw new InvalidOperationException("Permission denied");
 
+			SendEvent(FileSystemEventType.ReadFile, path);
 			return stream;
 		}
 		
@@ -192,6 +197,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (!file.TryOpenWrite(this.user, out Stream? stream) || stream == null)
 				throw new InvalidOperationException("Permission denied");
 
+			SendEvent(FileSystemEventType.WriteFile, path);
 			return stream;
 		}
 		
@@ -206,6 +212,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (!file.TryOpenWriteAppend(this.user, out Stream? stream) || stream == null)
 				throw new InvalidOperationException("Permission denied");
 
+			SendEvent(FileSystemEventType.WriteFile, path);
 			return stream;
 		}
 
@@ -217,6 +224,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (file == null)
 				return false;
 
+			SendEvent(FileSystemEventType.ReadFile, path);
 			return file.CanExecute;
 		}
 		
@@ -280,6 +288,8 @@ namespace SociallyDistant.Core.OS.FileSystems
 			if (directory == null)
 				throw new DirectoryNotFoundException();
 			
+			SendEvent(FileSystemEventType.ListDirectories, path);
+            
 			foreach (IDirectoryEntry subEntry in directory.ReadSubDirectories(this.user))
 			{
 				yield return PathUtility.Combine(path, subEntry.Name);
@@ -296,6 +306,8 @@ namespace SociallyDistant.Core.OS.FileSystems
 
 			var overriddenFiles = new List<string>();
 
+			SendEvent(FileSystemEventType.ListFiles, path);
+			
 			if (this.fileOverrider != null)
 			{
 				foreach (string filename in fileOverrider.EnumerateFiles(this.user, parts))
@@ -357,6 +369,12 @@ namespace SociallyDistant.Core.OS.FileSystems
 				throw new InvalidOperationException("Is a directory");
 			
 			mountPoint.FileSystem.Unmount(mountPoint);
+		}
+
+		private void SendEvent(FileSystemEventType type, string path)
+		{
+			var fileSystemEvent = new FileSystemEvent(this.user.Computer, path, type);
+			EventBus.Post(fileSystemEvent);
 		}
 	}
 }

@@ -14,9 +14,11 @@ using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.Config;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.WorldData.Data;
+using SociallyDistant.Core.EventBus;
 using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.OS;
 using SociallyDistant.Core.OS.Network.MessageTransport;
+using SociallyDistant.Core.OS.Tasks;
 using SociallyDistant.Core.Serialization.Binary;
 using SociallyDistant.Core.Shell;
 using SociallyDistant.Core.Shell.Common;
@@ -77,6 +79,7 @@ internal sealed class SociallyDistantGame :
 	private readonly        ScreenshotHelper             screenshotHelper;
 	private readonly        MailManager                  mailManager;
 	private readonly        MissionManager               missionManager;
+	private readonly        EventBusImplementation       eventBus = new();
 	private                 bool                         areModulesLoaded;
 	private                 Task                         initializeTask;
 	private                 PlayerInfo                   playerInfo = new();
@@ -90,7 +93,9 @@ internal sealed class SociallyDistantGame :
 
 	/// <inheritdoc />
 	public IVirtualScreen? VirtualScreen => virtualScreen;
-	
+
+	public ITaskManager DeviceManager => deviceCoordinator;
+
 	/// <inheritdoc />
 	public IModuleManager ModuleManager => moduleManager;
 
@@ -113,10 +118,12 @@ internal sealed class SociallyDistantGame :
 	public IUriManager UriManager => uriManager;
 
 	/// <inheritdoc />
-	public IKernel Kernel { get; }
+	public IKernel Kernel => playerManager;
 
 	/// <inheritdoc />
 	public IShellContext Shell => guiController;
+
+	public INetworkSimulation Network => networkEventLIstener;
 
 	/// <inheritdoc />
 	public Game GameInstance => this;
@@ -502,6 +509,9 @@ internal sealed class SociallyDistantGame :
 		// Report new timing data to the rest of the game so it can be accessed statically
 		timeData.Update(gameTime);
 
+		// Dispatch any events waiting in the event bus queues.
+		eventBus.Dispatch();
+		
 		if (!initialized && initializeTask.IsCompleted)
 		{
 			if (!initializeTask.IsCompletedSuccessfully)

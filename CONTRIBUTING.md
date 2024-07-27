@@ -48,7 +48,8 @@ By making a contribution to this project, I certify that:
 By contributing to the game, you also agree that your code can and will be distributed under the terms of the MIT License (see `/LICENSE`), and thus will be included in the paid Steam version of the game with
 attribution.
 
-> [!NOTE]
+> :asterisk: **Note**
+>
 >In the Steam version of the game, contributors will be listed in **System Settings** / **About** / **Open Source Contributions**.
 
 ## Pull request format
@@ -72,7 +73,7 @@ instead of just in the Terminal.
 - Allow opening new Terminal sessions with code
 - Fix issue where Terminal doesn't close after running its root command
 
-Fixes issue #226
+Closes #226
 Signed-off-by: YOUR NAME <YOUR EMAIL ADDRESS>
 ```
 

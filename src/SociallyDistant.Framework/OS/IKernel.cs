@@ -12,5 +12,7 @@ namespace SociallyDistant.Core.OS
 		IComputer Computer { get; }
         
 		ISkillTree SkillTree { get; }
+
+		string GetPlayerHomeDirectory();
 	}
 }

@@ -27,8 +27,6 @@ public sealed class InfoPanelController : IInfoPanelService
         this.widgets.Clear();
         this.infoPanel = new InfoPanel(widgets);
 
-        this.CreateCloseableInfoWidget(MaterialIcons.Star, "This is a test.", "If you're seeing this, info panel is working.");
-
         infoPanel.ItemClosed += this.CloseWidget;
     }
 
@@ -52,7 +50,22 @@ public sealed class InfoPanelController : IInfoPanelService
             widgets.RemoveAt(i);
         }
     }
-		
+
+    public void SetWidgetCheckLists(int widgetId, IEnumerable<InfoPanelCheckList> checkLists)
+    {
+        for (var i = 0; i < widgets.Count; i++)
+        {
+            if (widgets[i].Id != widgetId)
+                continue;
+
+            var widget = widgets[i];
+            widget.CreationData.CheckLists = checkLists.ToArray();
+            widgets[i] = widget;
+            
+            break;
+        }
+    }
+    
     public int CreateCloseableInfoWidget(string icon, string title, string message)
     {
         return AddWidgetInternal(new InfoWidgetCreationData()
@@ -63,7 +76,23 @@ public sealed class InfoPanelController : IInfoPanelService
             Closeable = true
         });
     }
-		
+
+    public void SetTitleAndDescription(int widgetId, string title, string description)
+    {
+        for (var i = 0; i < widgets.Count; i++)
+        {
+            if (widgets[i].Id != widgetId)
+                continue;
+
+            var widget = widgets[i];
+            widget.CreationData.Title = title;
+            widget.CreationData.Text = description;
+
+            widgets[i] = widget;
+            break;
+        }
+    }
+    
     public int CreateStickyInfoWidget(string icon, string title, string message)
     {
         return AddWidgetInternal(new InfoWidgetCreationData()

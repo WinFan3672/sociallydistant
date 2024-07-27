@@ -3,7 +3,9 @@ using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Serilog;
 using SociallyDistant.Core.OS.Devices;
+using SociallyDistant.Core.OS.FileSystems;
 using SociallyDistant.Core.OS.Tasks;
+using SociallyDistant.OS.Devices;
 
 namespace SociallyDistant.Architecture
 {
@@ -12,10 +14,12 @@ namespace SociallyDistant.Architecture
 		ITaskManager
 	{
 		private readonly Dictionary<IComputer, IInitProcess> computers = new Dictionary<IComputer, IInitProcess>();
-		private readonly List<ISystemProcess> processes = new List<ISystemProcess>();
+		private readonly List<ISystemProcess>                processes = new List<ISystemProcess>();
+		private readonly IVirtualFileSystem                  filesystem;
 
 		internal DeviceCoordinator(SociallyDistantGame game) : base(game)
 		{
+			this.filesystem = new DevicesFileSystem(this);
 		}
 		
 		/// <inheritdoc />
@@ -49,7 +53,17 @@ namespace SociallyDistant.Architecture
 			DeclareProcess(initProcess);
 			return initProcess;
 		}
-		
+
+		public IComputer? GetNarrativeComputer(string narrativeId)
+		{
+			if (narrativeId == "player")
+				return computers.Keys.OfType<PlayerComputer>().FirstOrDefault();
+
+			return computers.Keys.FirstOrDefault(x => x.NarrativeId == narrativeId);
+		}
+
+		public IVirtualFileSystem WorldFileSystem => filesystem;
+
 		public void ForgetComputer(IComputer computer)
 		{
 			if (!computers.ContainsKey(computer))

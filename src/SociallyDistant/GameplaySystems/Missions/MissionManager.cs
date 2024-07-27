@@ -1,9 +1,9 @@
 ﻿#nullable enable
-using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Serilog;
 using SociallyDistant.Core;
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.Events;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.WorldData.Data;
 using SociallyDistant.Core.Missions;
@@ -12,6 +12,7 @@ using SociallyDistant.Core.OS.Devices;
 using SociallyDistant.Core.Social;
 using SociallyDistant.Core.WorldData;
 using SociallyDistant.GameplaySystems.Social;
+using SociallyDistant.UI.Missions;
 
 namespace SociallyDistant.GameplaySystems.Missions
 {
@@ -21,14 +22,18 @@ namespace SociallyDistant.GameplaySystems.Missions
 		private readonly        SociallyDistantGame       gameManager = null!;
 		private readonly        StartMissionCommand       startMissionCommand;
 		private readonly        MissionMailerHook         missionMailerHook;
-		private readonly        IMissionController        missionController;
+		private readonly        MissionController         missionController;
+		private readonly        TaskRefreshHook           taskRefreshHook;
 		private                 CancellationTokenSource?  missionAnandonSource;
 		private                 IMission?                 currentMission;
 		private                 Task?                     currentMissionTask;
+		private                 Task?                     completionScreen;
 		
 		private WorldManager WorldManager => WorldManager.Instance;
 		private ISocialService SocialService => gameManager.SocialService;
 
+		public IObservable<IEnumerable<IObjective>> CurrentObjectivesObservable => missionController.ObjectivesObservable;
+		
 		public IMission? CurrentMission => currentMission;
 
 		public bool CAnAbandonMissions => CurrentMission != null && missionController.CanAbandonMission;
@@ -43,8 +48,10 @@ namespace SociallyDistant.GameplaySystems.Missions
 			this.startMissionCommand = new StartMissionCommand(this);
 			this.missionMailerHook = new MissionMailerHook(this);
 			this.missionController = new MissionController(this, this.WorldManager, this.gameManager);
+			taskRefreshHook = new TaskRefreshHook(this);
 		}
 		
+		/// <inheritdoc />
 		public override void Initialize()
 		{
 			base.Initialize();
@@ -52,8 +59,10 @@ namespace SociallyDistant.GameplaySystems.Missions
 			gameManager.UriManager.RegisterSchema("mission", new MissionUriSchemeHandler(this));
 			gameManager.ScriptSystem.RegisterGlobalCommand("start_mission", startMissionCommand);
 			gameManager.ScriptSystem.RegisterHookListener(CommonScriptHooks.AfterWorldStateUpdate, missionMailerHook);
+			gameManager.ScriptSystem.RegisterHookListener(CommonScriptHooks.AfterContentReload, taskRefreshHook);
 		}
 
+		/// <inheritdoc />
 		protected override void Dispose(bool disposing)
 		{
 			base.Dispose(disposing);
@@ -64,44 +73,73 @@ namespace SociallyDistant.GameplaySystems.Missions
 			gameManager.UriManager.UnregisterSchema("mission");
 			gameManager.ScriptSystem.UnregisterHookListener(CommonScriptHooks.AfterWorldStateUpdate, missionMailerHook);
 			gameManager.ScriptSystem.UnregisterGlobalCommand("start_mission");
+			gameManager.ScriptSystem.UnregisterHookListener(CommonScriptHooks.AfterContentReload, taskRefreshHook);
 			singleton.SetInstance(null);
 		}
 
+		/// <inheritdoc />
 		public override void Update(GameTime gameTime)
 		{
 			base.Update(gameTime);
+
+			if (completionScreen != null)
+			{
+				if (completionScreen.IsCompleted)
+					completionScreen = null;
+				
+				return;
+			}
+			
 			if (currentMissionTask != null)
 			{
 				if (currentMissionTask.Exception != null)
 				{
+					var failException = SociallyDistantUtility.UnravelAggregateExceptions(currentMissionTask.Exception).OfType<MissionFailedException>().FirstOrDefault();
+					if (failException != null)
+					{
+						completionScreen = MissionFailScreen.Show(currentMission, failException.Message);
+						
+						return;
+					}
+					
+					gameManager.Shell.ShowExceptionMessage(currentMissionTask.Exception);
 					Log.Error(currentMissionTask.Exception.ToString());
 					AbandonMission();
 				}
 				else if (currentMissionTask.IsCompleted)
 				{
-					CompleteMission();
+					completionScreen = CompleteMission();
 				}
+				
 			}
 		}
 
-		private async void CompleteMission()
+		private async Task CompleteMission()
 		{
 			if (this.currentMission == null)
 				return;
 
 			ProtectedWorldState protectedState = WorldManager.World.ProtectedWorldData.Value;
 			var missionList = new List<string>();
-			missionList.AddRange(protectedState.CompletedMissions);
+			
+			if (protectedState.CompletedInteractions != null!)
+				missionList.AddRange(protectedState.CompletedMissions);
+			
 			missionList.Add(this.currentMission.Id);
 
 			protectedState.CompletedMissions = missionList;
 
 			WorldManager.World.ProtectedWorldData.Value = protectedState;
 
+			await MissionCompleteScreen.Show(currentMission, missionController);
+			
+			var completeEvent = new MissionCompleteEvent(currentMission);
+            
 			this.currentMission = null;
 			this.currentMissionTask = null;
 			this.missionAnandonSource = null;
-
+			
+			EventBus.Post(completeEvent);
 			await gameManager.SaveCurrentGame(false);
 		}
 
@@ -110,9 +148,15 @@ namespace SociallyDistant.GameplaySystems.Missions
 			if (this.currentMission == null)
 				return;
 
+			var abandonEvent = new MissionAbandonEvent(currentMission);
+
+			missionController.AbandonAllObjectivesInternal();
+			
 			this.missionAnandonSource?.Cancel();
 			this.currentMission = null;
 			this.currentMissionTask = null;
+
+			EventBus.Post(abandonEvent);
 		}
 		
 		public bool StartMission(IMission mission)
@@ -291,6 +335,22 @@ namespace SociallyDistant.GameplaySystems.Missions
 			}
 		}
 
+		private class TaskRefreshHook : IHookListener
+		{
+			private readonly MissionManager missionManager;
+			
+			public TaskRefreshHook(MissionManager missionManager)
+			{
+				this.missionManager = missionManager;
+			}
+			
+			public Task ReceiveHookAsync(IGameContext game)
+			{
+				missionManager.missionController.RefreshTaskIdsInternal(game.ContentManager);
+				return Task.CompletedTask;
+			}
+		}
+		
 		public static MissionManager? Instance => singleton.Instance;
 	}
 }

@@ -41,6 +41,11 @@ namespace SociallyDistant.Player
 		public IComputer Computer => computer;
 		public ISkillTree SkillTree => skillTree;
 		
+		public string GetPlayerHomeDirectory()
+		{
+			return PlayerUser.Home;
+		}
+
 		internal PlayerManager(SociallyDistantGame game, DeviceCoordinator deviceCoordinator, LocalAreaNetwork playerNetwork)
 		{
 			this.game = game;
