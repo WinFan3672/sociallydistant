@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Reactive.Subjects;
 using Serilog;
+using SociallyDistant.Core;
 using SociallyDistant.Core.ContentManagement;
 using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Missions;
@@ -14,13 +15,17 @@ namespace SociallyDistant.GameplaySystems.Missions
 		private readonly List<IObjective>                     objectives             = new();
 		private readonly Subject<IReadOnlyList<IObjective>>   objectiveUpdateSubject = new();
 		private readonly MissionManager                       missionManager;
-		private readonly IWorldManager                        worldManager;
+		private readonly WorldManager                        worldManager;
 		private readonly SociallyDistantGame                  gameManagerHolder;
 		private readonly Dictionary<string, MissionTaskAsset> taskIds              = new();
 		private readonly List<ObjectiveController>            objectiveControllers = new();
+		private readonly List<IGameRestorePoint>              previousCheckpoints  = new();
 		private          bool                                 suppressRefresh;
 		private          bool                                 failed;
 		private          string                               failReasion = string.Empty;
+		private          IGameRestorePoint?                   currentCheckpoint;
+		
+		 
 
 		/// <inheritdoc />
 		public IGameContext Game => gameManagerHolder!;
@@ -36,7 +41,7 @@ namespace SociallyDistant.GameplaySystems.Missions
 
 		public IObservable<IEnumerable<IObjective>> ObjectivesObservable => objectiveUpdateSubject;
 
-		internal MissionController(MissionManager missionManager, IWorldManager worldManager, SociallyDistantGame gameManagerHolder)
+		internal MissionController(MissionManager missionManager, WorldManager worldManager, SociallyDistantGame gameManagerHolder)
 		{
 			this.missionManager = missionManager;
 			this.worldManager = worldManager;
@@ -162,6 +167,12 @@ namespace SociallyDistant.GameplaySystems.Missions
 			return objectiveUpdateSubject.Subscribe(callback);
 		}
 
+		internal void ResetFailedState()
+		{
+			failed = false;
+			failReasion = string.Empty;
+		}
+        
 		public void ThrowIfFailed()
 		{
 			if (!failed)
@@ -170,6 +181,92 @@ namespace SociallyDistant.GameplaySystems.Missions
 			throw new MissionFailedException(failReasion);
 		}
 
+		internal void DropCheckpoints()
+		{
+			currentCheckpoint = null;
+			previousCheckpoints.Clear();
+		}
+		
+		private void UpdateWorld()
+		{
+			var protectedState = worldManager.World.ProtectedWorldData.Value;
+			protectedState.Checkpoints = previousCheckpoints.Select(x => x.Id).ToArray();
+			worldManager.World.ProtectedWorldData.Value = protectedState;
+		}
+        
+		public async Task PushCheckpoint(string id)
+		{
+			if (currentCheckpoint?.Id == id)
+				return;
+
+			if (currentCheckpoint != null)
+			{
+				previousCheckpoints.Add(currentCheckpoint);
+				UpdateWorld();
+			}
+
+			currentCheckpoint = await gameManagerHolder.CreateRestorePoint(id);
+		}
+
+		public bool HasReachedCheckpoint(string id)
+		{
+			return previousCheckpoints.Any(x => x.Id == id);
+		}
+
+		internal async Task SetMissionCheckpoint(string id)
+		{
+			if (currentCheckpoint?.Id == id)
+				return;
+
+			if (previousCheckpoints.Count > 0 && previousCheckpoints[0].Id == id)
+				return;
+			
+			currentCheckpoint?.Dispose();
+
+			while (previousCheckpoints.Count > 0)
+			{
+				previousCheckpoints[^1].Dispose();
+				previousCheckpoints.RemoveAt(previousCheckpoints.Count-1);
+			}
+
+			UpdateWorld();
+			
+			if (string.IsNullOrWhiteSpace(id))
+				return;
+
+			currentCheckpoint = await gameManagerHolder.CreateRestorePoint(id);
+		}
+		
+		public async Task RestoreCheckpoint()
+		{
+			if (currentCheckpoint == null)
+				return;
+            
+			await currentCheckpoint.Restore();
+		}
+
+		public async Task RestoreMissionCheckpoint()
+		{
+			while (previousCheckpoints.Count > 0)
+			{
+				currentCheckpoint?.Dispose();
+				currentCheckpoint = previousCheckpoints[^1];
+				previousCheckpoints.RemoveAt(previousCheckpoints.Count-1);
+			}
+
+			if (currentCheckpoint == null)
+				return;
+            
+			await currentCheckpoint.Restore();
+		}
+
+		internal void SetCheckpointHistoryInternal(IEnumerable<IGameRestorePoint> checkpointSource)
+		{
+			currentCheckpoint = null;
+			previousCheckpoints.Clear();
+			previousCheckpoints.AddRange(checkpointSource);
+		}
+        
 		private void DealWithCompletedObjectives()
 		{
 			var controllers = objectiveControllers.ToArray();

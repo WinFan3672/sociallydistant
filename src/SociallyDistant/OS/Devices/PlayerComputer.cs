@@ -118,6 +118,8 @@ namespace SociallyDistant.OS.Devices
 		/// <inheritdoc />
 		public IUser SuperUser => su;
 
+		public IEnumerable<IUser> Users => this.users.Values;
+
 		/// <inheritdoc />
 		public async Task<ISystemProcess?> ExecuteProgram(ISystemProcess parentProcess, ITextConsole console, string programName, string[] arguments)
 		{

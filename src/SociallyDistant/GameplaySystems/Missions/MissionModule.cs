@@ -8,17 +8,37 @@ public sealed class MissionModule : ScriptModule
 	private readonly MissionScriptContext context;
 	private readonly IMissionController   missionController;
 	private readonly IMission             mission;
+	private          string               currentCheckpoint;
 
 	public MissionModule(MissionScriptContext context, IMissionController controller, IMission mission)
 	{
+		currentCheckpoint = mission.Id;
+        
 		this.context = context;
 		this.missionController = controller;
 		this.mission = mission;
 	}
 
+	public bool FastForwarding => missionController.HasReachedCheckpoint(currentCheckpoint);
+    
+	[Function("checkpoint")]
+	public async Task PushCheckpoint(string id)
+	{
+		string fullId = $"{mission.Id}:{id}";
+		currentCheckpoint = fullId;
+		
+		if (missionController.HasReachedCheckpoint(fullId))
+			return;
+		
+		await missionController.PushCheckpoint(fullId);
+	}
+    
 	[Function("objective")]
 	public Task PostMainObjective(string[] args)
 	{
+		if (FastForwarding)
+			return Task.CompletedTask;
+		
 		ParseObjectiveParameters(args, out ObjectiveParameters parameters);
 		return missionController.PostNewObjective(ObjectiveKind.Primary, parameters.DesiredResult, parameters.TimeOut, parameters.Title, parameters.FailReason,parameters.TaskName, parameters.TaskParameters);
 	}
@@ -26,6 +46,9 @@ public sealed class MissionModule : ScriptModule
 	[Function("challenge")]
 	public Task PostChallenge(string[] args)
 	{
+		if (FastForwarding) 
+			return Task.CompletedTask;
+		
 		ParseObjectiveParameters(args, out ObjectiveParameters parameters);
 		return missionController.PostNewObjective(ObjectiveKind.Challenge, parameters.DesiredResult, parameters.TimeOut, parameters.Title, parameters.FailReason,parameters.TaskName, parameters.TaskParameters);
 	}
@@ -33,6 +56,9 @@ public sealed class MissionModule : ScriptModule
 	[Function("hidden")]
 	public Task PostHiddenChallenge(string[] args)
 	{
+		if (FastForwarding)
+			return Task.CompletedTask;
+		
 		ParseObjectiveParameters(args, out ObjectiveParameters parameters);
 		return missionController.PostNewObjective(ObjectiveKind.HiddenChallenge, parameters.DesiredResult, parameters.TimeOut, parameters.Title, parameters.FailReason, parameters.TaskName, parameters.TaskParameters);
 	}

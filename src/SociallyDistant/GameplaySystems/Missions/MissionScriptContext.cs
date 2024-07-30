@@ -13,11 +13,12 @@ namespace SociallyDistant.GameplaySystems.Missions
 {
 	public sealed class MissionScriptContext : IScriptExecutionContext
 	{
-		private readonly ScriptModuleManager modules = new();
-		private readonly ScriptFunctionManager functions = new();
+		private readonly ScriptModuleManager        modules   = new();
+		private readonly ScriptFunctionManager      functions = new();
 		private readonly Dictionary<string, string> variables = new(0);
-		private readonly IMission mission;
-		private readonly IMissionController missionController;
+		private readonly IMission                   mission;
+		private readonly IMissionController         missionController;
+		private readonly MissionModule              missionModule;
 
 		public MissionScriptContext(IMissionController controller, IMission mission)
 		{
@@ -26,7 +27,9 @@ namespace SociallyDistant.GameplaySystems.Missions
 
 			this.modules.RegisterModule(new ShellHelpersModule(missionController.Game));
 			this.modules.RegisterModule(new NpcModule(missionController.Game.SocialService));
-			this.modules.RegisterModule(new MissionModule(this, missionController, mission));
+			
+			missionModule = new MissionModule(this, missionController, mission);
+			this.modules.RegisterModule(missionModule);
 		}
 
 		/// <inheritdoc />
@@ -94,11 +97,11 @@ namespace SociallyDistant.GameplaySystems.Missions
 			}
 			else if (mode == FileRedirectionType.Overwrite)
 			{
-				return new FileOutputConsole(realConsole, fs.OpenWrite(filePath));
+				return new FileOutputConsole(realConsole, missionModule.FastForwarding ? Stream.Null : fs.OpenWrite(filePath));
 			}
 			else if (mode == FileRedirectionType.Append)
 			{
-				return new FileOutputConsole(realConsole, fs.OpenWriteAppend(filePath));
+				return new FileOutputConsole(realConsole, missionModule.FastForwarding ? Stream.Null : fs.OpenWriteAppend(filePath));
 			}
             
 			return realConsole;

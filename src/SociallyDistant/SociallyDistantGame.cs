@@ -37,6 +37,7 @@ using SociallyDistant.Modding;
 using SociallyDistant.Player;
 using SociallyDistant.UI;
 using SociallyDistant.UI.Backdrop;
+using SociallyDistant.UI.Splash;
 
 namespace SociallyDistant;
 
@@ -246,8 +247,31 @@ internal sealed class SociallyDistantGame :
 		devTools.Initialize();
 	}
 
+	internal IGameRestorePoint? GetRestorePoint(string id)
+	{
+		if (currentGameData is not IGameDataWithCheckpoints checkpoints)
+			return null;
+
+		return checkpoints.GetRestorePoint(id);
+	}
+
 	protected override void OnExiting(object sender, EventArgs args)
 	{
+		SynchronizationContext.SetSynchronizationContext(null);
+		
+		if (currentGameData != null)
+		{
+			if (MissionManager.Instance?.CurrentMission != null)
+			{
+				MissionManager.Instance.AbandonMissionForGameExit();
+			}
+
+			Task.Run(() =>
+			{
+				SaveCurrentGame(true).GetAwaiter().GetResult();
+			}).GetAwaiter().GetResult();
+		}
+		
 		SetGameMode(GameMode.Loading);
         
 		settingsManager.Save();
@@ -299,6 +323,8 @@ internal sealed class SociallyDistantGame :
 
 	private async Task DoUserInitialization()
 	{
+		await SplashScreen.Show();
+		
 		InitializationFlow flow = GetInitializationFlow();
 
 		IGameData? saveToLoad = null;
@@ -309,9 +335,7 @@ internal sealed class SociallyDistantGame :
 		}
 		else if (flow == InitializationFlow.MostRecentSave)
 		{
-			saveToLoad = ContentManager.GetContentOfType<IGameData>()
-				.OrderByDescending(x => x.PlayerInfo.LastPlayed)
-				.FirstOrDefault();
+			saveToLoad = ContentManager.GetContentOfType<IGameData>().MaxBy(x => x.PlayerInfo.LastPlayed);
 		}
 
 		if (saveToLoad != null)
@@ -320,7 +344,9 @@ internal sealed class SociallyDistantGame :
 			return;
 		}
 
-		if (flow == InitializationFlow.MostRecentSave)
+		var noAccounts = !ContentManager.GetContentOfType<IGameData>().Any();
+		
+		if (flow == InitializationFlow.MostRecentSave || noAccounts)
 			await StartCharacterCreator();
 		else 
 			await GoToLoginScreen();
@@ -346,6 +372,11 @@ internal sealed class SociallyDistantGame :
 
 		try
 		{
+			if (gameToLoad is IGameDataWithCheckpoints checkpointGame)
+			{
+				await checkpointGame.RecoverSaneCheckpointOnInsaneGameExit();
+			}
+			
 			this.loadedPlayerInfo = gameToLoad.PlayerInfo;
 			this.loadedPlayerInfo.LastPlayed = DateTime.UtcNow;
 
@@ -451,6 +482,8 @@ internal sealed class SociallyDistantGame :
 		if (currentGameData == null)
 			return;
 
+		loadedPlayerInfo.Comment = MissionManager.Instance?.CurrentMission?.Name ?? loadedPlayerInfo.Comment;
+		
 		await currentGameData.UpdatePlayerInfo(loadedPlayerInfo);
 		await currentGameData.SaveWorld(WorldManager);
 
@@ -474,6 +507,16 @@ internal sealed class SociallyDistantGame :
 		this.playerInfoSubject.OnNext(this.loadedPlayerInfo);
 
 		worldManager.WipeWorld();
+	}
+
+	public async Task<IGameRestorePoint?> CreateRestorePoint(string id)
+	{
+		if (IsGameActive)
+			await SaveCurrentGame(true);
+
+		return currentGameData != null
+			? await currentGameData.CreateRestorePoint(id)
+			: null;
 	}
 
 	/// <inheritdoc />

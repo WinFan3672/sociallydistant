@@ -41,6 +41,14 @@ namespace SociallyDistant.Core.Core.Scripting
 		/// <inheritdoc />
 		public IUser SuperUser => user;
 
+		public IEnumerable<IUser> Users
+		{
+			get
+			{
+				yield break;
+			}
+		}
+
 		/// <inheritdoc />
 		public Task<ISystemProcess?> ExecuteProgram(ISystemProcess parentProcess, ITextConsole console, string programName, string[] arguments)
 		{

@@ -75,6 +75,13 @@ namespace SociallyDistant.Core.Modules
 		Task SaveCurrentGame(bool silent);
 		Task EndCurrentGame(bool save);
 		
+		/// <summary>
+		///		Saves the game and creates a new restore point based on it.
+		/// </summary>
+		/// <param name="id">An arbitrary ID to assign to the restore point, for your own book-keeping.</param>
+		/// <returns></returns>
+		Task<IGameRestorePoint?> CreateRestorePoint(string id);
+		
 		bool IsDebugWorld { get; }
 
 		void SetPlayerHostname(string hostname);

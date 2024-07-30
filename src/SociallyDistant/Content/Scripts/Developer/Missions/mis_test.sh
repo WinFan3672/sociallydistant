@@ -31,6 +31,9 @@ start() {
   challenge "Ping New Cipher Medical\'s network" ping newciphermedical &
   hidden "Ping New Cipher Today\'s website" ping newciphertoday
   
+  # Create a checkpoint to restore from for when the player deletes the file later.
+  checkpoint endurance_test
+  
   # Required task: Create the testflag file you just deleted.
   # This objective won't be posted until the above objective list is cleared.
   objective "Re-create the deleted flag file" writefile ${FLAGFILE}

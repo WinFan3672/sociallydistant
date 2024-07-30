@@ -7,13 +7,15 @@ namespace SociallyDistant.Core.WorldData
 	public struct ProtectedWorldState :
 		IWorldData
 	{
-		private string lifepathId;
-		private string gameVersion;
-		private string currentMissionId;
+		private string                lifepathId;
+		private string                gameVersion;
+		private string                currentMissionId;
+		private IReadOnlyList<string> checkpoints;
 		private IReadOnlyList<string> completedMissions;
 		private IReadOnlyList<string> completedInteractions;
 		private IReadOnlyList<string> failedMissions;
-		private ulong experience;
+		private ulong                 experience;
+		
 
 		public string GameVersion
 		{
@@ -21,6 +23,12 @@ namespace SociallyDistant.Core.WorldData
 			set => gameVersion = value;
 		}
 
+		public IReadOnlyList<string> Checkpoints
+		{
+			get => checkpoints;
+			set => checkpoints = value;
+		}
+		
 		public string LifepathId
 		{
 			get => lifepathId;
@@ -60,15 +68,17 @@ namespace SociallyDistant.Core.WorldData
 		/// <inheritdoc />
 		public void Serialize(IWorldSerializer serializer)
 		{
-			SerializationUtility.SerializeAtRevision(ref lifepathId, serializer, WorldRevision.Lifepaths, default);
-			SerializationUtility.SerializeAtRevision(ref gameVersion, serializer, WorldRevision.ChangeLogs, default);
+			SerializationUtility.SerializeAtRevision(ref lifepathId,       serializer, WorldRevision.Lifepaths,       default);
+			SerializationUtility.SerializeAtRevision(ref gameVersion,      serializer, WorldRevision.ChangeLogs,      default);
 			SerializationUtility.SerializeAtRevision(ref currentMissionId, serializer, WorldRevision.MissionFailures, default);
-			SerializationUtility.SerializeAtRevision(ref experience, serializer, WorldRevision.MissionFailures, default);
+			SerializationUtility.SerializeAtRevision(ref experience,       serializer, WorldRevision.MissionFailures, default);
 			
-			SerializationUtility.SerializeCollectionAtRevision(ref completedMissions, serializer, WorldRevision.CompletedMissions);
+			SerializationUtility.SerializeCollectionAtRevision(ref completedMissions,     serializer, WorldRevision.CompletedMissions);
 			SerializationUtility.SerializeCollectionAtRevision(ref completedInteractions, serializer, WorldRevision.CompletedInteractions);
-			SerializationUtility.SerializeCollectionAtRevision(ref failedMissions, serializer, WorldRevision.MissionFailures);
-			
+			SerializationUtility.SerializeCollectionAtRevision(ref failedMissions,        serializer, WorldRevision.MissionFailures);
+			SerializationUtility.SerializeCollectionAtRevision(ref checkpoints,           serializer, WorldRevision.Checkpoints);
+
+
 		}
 	}
 }

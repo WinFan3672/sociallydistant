@@ -29,7 +29,8 @@
 		Notifications = 24,
 		ComputersCanListen = 25,
 		CharacterAttributes = 26,
-		Articles,
+		Articles = 27,
+		Checkpoints = 28,
 		
 		Latest
 	}

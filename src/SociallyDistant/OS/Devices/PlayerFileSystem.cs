@@ -30,9 +30,18 @@ namespace SociallyDistant.OS.Devices
 			
 			string userPath = Path.Combine(baseDirectoryOnHost, user.UserName);
 
+			
+			
 			if (!Directory.Exists(userPath))
 				Directory.CreateDirectory(userPath);
 
+			foreach (IUser otherUser in computer.Users.Where(x => x.Id != 0))
+			{
+				string otherUserPath = Path.Combine(baseDirectoryOnHost, otherUser.UserName);
+				if (!Directory.Exists(otherUserPath))
+					Directory.CreateDirectory(otherUserPath);
+			}
+            
 			foreach (string directory in Directory.EnumerateDirectories(baseDirectoryOnHost))
 			{
 				yield return new HostDirectoryEntry(filesystem, directory, this);

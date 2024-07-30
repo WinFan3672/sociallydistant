@@ -192,7 +192,7 @@ namespace SociallyDistant.Core.OS.FileSystems
 			IFileEntry? file = FindFileEntry(parts, create: true);
 
 			if (file == null)
-				throw new FileNotFoundException();
+				throw new FileNotFoundException(path);
 
 			if (!file.TryOpenWrite(this.user, out Stream? stream) || stream == null)
 				throw new InvalidOperationException("Permission denied");

@@ -84,6 +84,14 @@ namespace SociallyDistant.GameplaySystems.NonPlayerComputers
 		/// <inheritdoc />
 		public IUser SuperUser => su;
 
+		public IEnumerable<IUser> Users
+		{
+			get
+			{
+				yield break;
+			}
+		}
+
 		/// <inheritdoc />
 		public async Task<ISystemProcess?> ExecuteProgram(ISystemProcess parentProcess, ITextConsole console, string programName, string[] arguments)
 		{
