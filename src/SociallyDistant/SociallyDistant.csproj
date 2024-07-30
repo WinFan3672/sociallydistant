@@ -8,6 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <MonoGamePlatform>DesktopGL</MonoGamePlatform>
     <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   
   <!-- Asset importer overrides -->

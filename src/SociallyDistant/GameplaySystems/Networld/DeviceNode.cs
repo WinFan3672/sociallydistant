@@ -1,4 +1,6 @@
-﻿using SociallyDistant.Core.OS.Devices;
+﻿using SociallyDistant.Core.Core.Events;
+using SociallyDistant.Core.EventBus;
+using SociallyDistant.Core.OS.Devices;
 using SociallyDistant.Core.OS.Network;
 using SociallyDistant.OS.Network;
 
@@ -22,9 +24,11 @@ namespace SociallyDistant.GameplaySystems.Networld
 
 		public NetworkConnection NetworkConnection => connection;
 		public IComputer Computer { get; }
+		public uint LocalAreaNetworkAddress { get; }
 
-		public DeviceNode(Subnet localSubnet, uint defaultGateway, uint localAddress, IComputer computer, IHostNameResolver hostResolver)
+		public DeviceNode(uint publicAddress, Subnet localSubnet, uint defaultGateway, uint localAddress, IComputer computer, IHostNameResolver hostResolver)
 		{
+			LocalAreaNetworkAddress = publicAddress;
 			Computer = computer;
 			
 			this.localSubnet = localSubnet;
@@ -80,8 +84,8 @@ namespace SociallyDistant.GameplaySystems.Networld
 			{
 				case PacketType.Ping:
 				{
+					EventBus.Post(new PingEvent(packet.SourceAddress, packet.DestinationAddress));
 					Packet response = packet.Clone();
-
 					response.SwapSourceAndDestination();
 					response.PacketType = PacketType.Pong;
 

@@ -5,6 +5,7 @@ using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.Config;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.OS;
+using SociallyDistant.Core.OS.Tasks;
 using SociallyDistant.Core.Shell;
 using SociallyDistant.Core.Shell.Common;
 using SociallyDistant.Core.Shell.InfoPanel;
@@ -17,9 +18,12 @@ namespace SociallyDistant.Core.Modules
 	/// </summary>
 	public interface IGameContext
 	{
+		INetworkSimulation Network { get; }
 		Game GameInstance { get; }
 		IVirtualScreen? VirtualScreen { get; }
 
+		ITaskManager DeviceManager { get; }
+		
 		IModuleManager ModuleManager { get; }
 		
 		TabbedToolCollection AvailableTools { get; }
@@ -70,6 +74,13 @@ namespace SociallyDistant.Core.Modules
 
 		Task SaveCurrentGame(bool silent);
 		Task EndCurrentGame(bool save);
+		
+		/// <summary>
+		///		Saves the game and creates a new restore point based on it.
+		/// </summary>
+		/// <param name="id">An arbitrary ID to assign to the restore point, for your own book-keeping.</param>
+		/// <returns></returns>
+		Task<IGameRestorePoint?> CreateRestorePoint(string id);
 		
 		bool IsDebugWorld { get; }
 

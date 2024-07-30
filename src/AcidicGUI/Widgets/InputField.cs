@@ -24,11 +24,26 @@ public sealed class InputField :
     private readonly TextWidget display = new();
     private readonly int displayPadding = 3;
 
-    private bool focused;
+    private bool   focused;
     private string placeholder = string.Empty;
-    private int caretIndex = 0;
-    private bool multiline;
+    private int    caretIndex  = 0;
+    private bool   multiline;
+    private int    selectionOffset;
+    private bool   selectAllOnFocus = true;
+    private bool   submitOnEnter;
 
+    public bool SubmitOnEnter
+    {
+        get => submitOnEnter;
+        set => submitOnEnter = value;
+    }
+    
+    public bool SelectAllOnFocus
+    {
+        get => selectAllOnFocus;
+        set => selectAllOnFocus = value;
+    }
+    
     public string Value
     {
         get => currentValue.ToString();
@@ -56,6 +71,9 @@ public sealed class InputField :
         get => multiline;
         set => multiline = value;
     }
+
+    public event Action<string>? OnSubmit;
+    public event Action<string>? OnValueChanged;
     
     public InputField()
     {
@@ -162,13 +180,15 @@ public sealed class InputField :
         }
     }
 
-    private void HandleEnter()
+    private void HandleEnter(bool shiftPressed)
     {
-        if (multiline)
+        if (multiline && (!submitOnEnter || shiftPressed))
         {
             InsertText('\n');
             return;
         }
+        
+        OnSubmit?.Invoke(currentValue.ToString());
     }
     
     private void SetValueInternal(string value)
@@ -176,12 +196,21 @@ public sealed class InputField :
         this.currentValue.Length = 0;
         this.currentValue.Append(value);
         caretIndex = Math.Clamp(caretIndex, 0, currentValue.Length);
+        caretIndex = currentValue.Length;
+        selectionOffset = 0;
 
         UpdateDisplay();
+        OnValueChanged?.Invoke(currentValue.ToString());
     }
 
     private void Delete(int index, int count)
     {
+        if (selectionOffset != 0)
+        {
+            DeleteSelection();
+            return;
+        }
+        
         if (index < 0)
             return;
 
@@ -201,21 +230,37 @@ public sealed class InputField :
         }
 
         UpdateDisplay();
+        
+        OnValueChanged?.Invoke(currentValue.ToString());
     }
     
     private void InsertText(char character)
     {
+        DeleteSelection();
+        
         if (caretIndex == currentValue.Length)
             currentValue.Append(character);
         else currentValue.Insert(caretIndex, character);
         caretIndex++;
         UpdateDisplay();
+        
+        OnValueChanged?.Invoke(currentValue.ToString());
     }
     
     private void UpdateDisplay()
     {
+        int actualSelectionStart = Math.Min(caretIndex, caretIndex + selectionOffset);
+        int actualSelectionEnd = Math.Max(caretIndex, caretIndex + selectionOffset);
+        int selectionLength = actualSelectionEnd - actualSelectionStart;
+        
         this.display.Text = currentValue.ToString();
+
+        if (selectionLength > 0)
+            display.SetSelection(actualSelectionStart, selectionLength);
+        
         InvalidateLayout();
+        
+        
     }
     
     public void OnMouseClick(MouseButtonEvent e)
@@ -228,12 +273,17 @@ public sealed class InputField :
 
     public void OnFocusGained(FocusEvent e)
     {
+        if (selectAllOnFocus)
+            SelectAll();
+        
         focused = true;
         InvalidateGeometry();
     }
 
     public void OnFocusLost(FocusEvent e)
     {
+        DeselectAll();
+        
         focused = false;
         InvalidateGeometry();
     }
@@ -256,6 +306,8 @@ public sealed class InputField :
 
     private void MoveToLineStart()
     {
+        DeselectAll();
+        
         var line = display.GetLineAtIndex(caretIndex);
         caretIndex = display.GetLineStart(line);
         InvalidateLayout();
@@ -263,6 +315,8 @@ public sealed class InputField :
 
     private void MoveToLineEnd()
     {
+        DeselectAll();
+        
         var line = display.GetLineAtIndex(caretIndex);
         caretIndex = display.GetLineStart(line) + display.GetLineLength(line);
         InvalidateLayout();
@@ -270,6 +324,8 @@ public sealed class InputField :
 
     private void MoveUp(int lines)
     {
+        DeselectAll();
+        
         int currentLine = display.GetLineAtIndex(caretIndex);
         int lineCount = display.GetLineCount();
         int nextLine = Math.Clamp(currentLine - lines, 0, lineCount - 1);
@@ -292,8 +348,76 @@ public sealed class InputField :
         InvalidateLayout();
     }
 
+    private void SelectAll()
+    {
+        caretIndex = 0;
+        selectionOffset = currentValue.Length;
+        UpdateDisplay();
+    }
+    
+    private void DeselectAll()
+    {
+        if (selectionOffset != 0)
+        {
+            selectionOffset = 0;
+            UpdateDisplay();
+        }
+    }
+    
+    private void SelectionMove(int amount)
+    {
+        int newOffset = selectionOffset + amount;
+        int caretAdjusted = caretIndex + newOffset;
+
+        if (caretAdjusted > currentValue.Length)
+            newOffset = currentValue.Length - caretIndex;
+        else if (caretAdjusted < 0)
+            newOffset = -caretIndex;
+
+        selectionOffset = newOffset;
+        UpdateDisplay();
+    }
+    
+    private void MoveRight(int characters)
+    {
+        if (selectionOffset != 0)
+        {
+            int caret = Math.Max(caretIndex, caretIndex + selectionOffset);
+            DeselectAll();
+            caretIndex = caret;
+            InvalidateLayout();
+            return;
+        }
+        
+        if (caretIndex < currentValue.Length)
+        {
+            caretIndex++;
+            InvalidateLayout();
+        }
+    }
+    
+    private void MoveLeft(int characters)
+    {
+        if (selectionOffset != 0)
+        {
+            int caret = Math.Min(caretIndex, caretIndex + selectionOffset);
+            DeselectAll();
+            caretIndex = caret;
+            InvalidateLayout();
+            return;
+        }
+        
+        if (caretIndex > 0)
+        {
+            caretIndex--;
+            InvalidateLayout();
+        }
+    }
+    
     private void MoveDown(int lines)
     {
+        DeselectAll();
+        
         int currentLine = display.GetLineAtIndex(caretIndex);
         int lineCount = display.GetLineCount();
         int nextLine = Math.Clamp(currentLine + lines, 0, lineCount - 1);
@@ -315,9 +439,28 @@ public sealed class InputField :
         caretIndex = nextLineStart + Math.Min(indexInLine, nextLineCount);
         InvalidateLayout();
     }
+
+    private void DeleteSelection()
+    {
+        int selectionStart = Math.Min(caretIndex, caretIndex + selectionOffset);
+        int selectionEnd = Math.Max(caretIndex, caretIndex + selectionOffset);
+        int selectionCount = selectionEnd - selectionStart;
+
+        if (selectionCount == 0)
+            return;
+
+        caretIndex = selectionStart;
+        currentValue.Remove(selectionStart, selectionCount);
+        selectionOffset = 0;
+        UpdateDisplay();
+        
+        OnValueChanged?.Invoke(currentValue.ToString());
+    }
     
     public void OnKeyDown(KeyEvent e)
     {
+        var selectionMode = e.Modifiers.HasFlag(ModifierKeys.Shift);
+        
         switch (e.Key)
         {
             case Keys.Home:
@@ -342,20 +485,18 @@ public sealed class InputField :
             }
             case Keys.Left:
             {
-                if (caretIndex > 0)
-                {
-                    caretIndex--;
-                    InvalidateLayout();
-                }
+                if (selectionMode)
+                    SelectionMove(-1);
+                else 
+                    MoveLeft(1);
                 break;
             }
             case Keys.Right:
             {
-                if (caretIndex < currentValue.Length)
-                {
-                    caretIndex++;
-                    InvalidateLayout();
-                }
+                if (selectionMode)
+                    SelectionMove(1);
+                else 
+                    MoveRight(1);
                 break;
             }
         }
@@ -368,10 +509,19 @@ public sealed class InputField :
     public void OnKeyChar(KeyCharEvent e)
     {
         e.Handle();
+
+        if (e.Key == Keys.Escape)
+        {
+            DeselectAll();
+            caretIndex = 0;
+            GuiManager?.SetFocusedWidget(this.Parent);
+            e.Handle();
+            return;
+        }
         
         if (e.Key == Keys.Enter)
         {
-            HandleEnter();
+            HandleEnter(e.Modifiers.HasFlag(ModifierKeys.Shift));
             return;
         }
 

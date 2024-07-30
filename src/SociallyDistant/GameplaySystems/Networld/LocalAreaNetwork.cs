@@ -5,9 +5,11 @@ namespace SociallyDistant.GameplaySystems.Networld
 {
 	public class LocalAreaNetwork
 	{
-		private Edge<LocalAreaNetwork, InternetServiceProvider> connection = new Edge<LocalAreaNetwork, InternetServiceProvider>();
-		private NetworkSimulationController simulation;
-		private LocalAreaNode node;
+		private readonly Edge<LocalAreaNetwork, InternetServiceProvider> connection = new Edge<LocalAreaNetwork, InternetServiceProvider>();
+		private readonly NetworkSimulationController                     simulation;
+		private readonly LocalAreaNode                                   node;
+
+		public uint PublicAddress => node.NetworkInterface.NetworkAddress;
 		
 		public Guid Token => connection.Token;
 

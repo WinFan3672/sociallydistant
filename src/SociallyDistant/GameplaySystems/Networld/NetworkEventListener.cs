@@ -3,19 +3,22 @@ using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Serilog;
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.WorldData.Data;
+using SociallyDistant.Core.Modules;
 using SociallyDistant.GameplaySystems.NonPlayerComputers;
 using SociallyDistant.Player;
 
 namespace SociallyDistant.GameplaySystems.Networld
 {
-	public class NetworkEventListener : GameComponent
+	public class NetworkEventListener : GameComponent, INetworkSimulation
 	{
 		private readonly SociallyDistantGame                           game;
 		private readonly Dictionary<ObjectId, InternetServiceProvider> isps               = new Dictionary<ObjectId, InternetServiceProvider>();
 		private readonly Dictionary<ObjectId, LocalAreaNetwork>        lans               = new Dictionary<ObjectId, LocalAreaNetwork>();
 		private readonly Dictionary<ObjectId, ForwardingTableEntry>    portForwardEntries = new Dictionary<ObjectId, ForwardingTableEntry>();
 		private readonly NonPlayerComputerEventListener                npcComputers;
+		private readonly NetworkUpdateHook                             updateNetworkHook = new();
 
 		private IWorldManager World => game.WorldManager;
 		private NetworkSimulationController Simulation => game.Simulation;
@@ -28,6 +31,8 @@ namespace SociallyDistant.GameplaySystems.Networld
 
 		public override void Initialize()
 		{
+			game.ScriptSystem.RegisterHookListener(CommonScriptHooks.AfterWorldStateUpdate, updateNetworkHook);
+			
 			npcComputers.Initialize();
 			InstallEvents();
 		}
@@ -43,6 +48,8 @@ namespace SociallyDistant.GameplaySystems.Networld
 			if (!disposing)
 				return;
 
+			game.ScriptSystem.UnregisterHookListener(CommonScriptHooks.AfterWorldStateUpdate, updateNetworkHook);
+            
 			npcComputers.Dispose();
 			UninstallEvents();
 		}
@@ -280,6 +287,18 @@ namespace SociallyDistant.GameplaySystems.Networld
 				}
 			}
 			
+		}
+
+		public uint? GetNarrativeAddress(string narrativeId)
+		{
+			if (narrativeId == "player")
+				return this.game.Player.Computer.Network?.PublicAddress;
+
+			if (!World.World.LocalAreaNetworks.ContainsNarrativeId(narrativeId))
+				return null;
+
+			var narrativeObject = World.World.LocalAreaNetworks.GetNarrativeObject(narrativeId);
+			return lans[narrativeObject.InstanceId].PublicAddress;
 		}
 	}
 }

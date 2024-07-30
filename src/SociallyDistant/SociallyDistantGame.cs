@@ -14,9 +14,11 @@ using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.Config;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.WorldData.Data;
+using SociallyDistant.Core.EventBus;
 using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.OS;
 using SociallyDistant.Core.OS.Network.MessageTransport;
+using SociallyDistant.Core.OS.Tasks;
 using SociallyDistant.Core.Serialization.Binary;
 using SociallyDistant.Core.Shell;
 using SociallyDistant.Core.Shell.Common;
@@ -35,6 +37,7 @@ using SociallyDistant.Modding;
 using SociallyDistant.Player;
 using SociallyDistant.UI;
 using SociallyDistant.UI.Backdrop;
+using SociallyDistant.UI.Splash;
 
 namespace SociallyDistant;
 
@@ -77,6 +80,7 @@ internal sealed class SociallyDistantGame :
 	private readonly        ScreenshotHelper             screenshotHelper;
 	private readonly        MailManager                  mailManager;
 	private readonly        MissionManager               missionManager;
+	private readonly        EventBusImplementation       eventBus = new();
 	private                 bool                         areModulesLoaded;
 	private                 Task                         initializeTask;
 	private                 PlayerInfo                   playerInfo = new();
@@ -90,7 +94,9 @@ internal sealed class SociallyDistantGame :
 
 	/// <inheritdoc />
 	public IVirtualScreen? VirtualScreen => virtualScreen;
-	
+
+	public ITaskManager DeviceManager => deviceCoordinator;
+
 	/// <inheritdoc />
 	public IModuleManager ModuleManager => moduleManager;
 
@@ -113,10 +119,12 @@ internal sealed class SociallyDistantGame :
 	public IUriManager UriManager => uriManager;
 
 	/// <inheritdoc />
-	public IKernel Kernel { get; }
+	public IKernel Kernel => playerManager;
 
 	/// <inheritdoc />
 	public IShellContext Shell => guiController;
+
+	public INetworkSimulation Network => networkEventLIstener;
 
 	/// <inheritdoc />
 	public Game GameInstance => this;
@@ -239,8 +247,31 @@ internal sealed class SociallyDistantGame :
 		devTools.Initialize();
 	}
 
+	internal IGameRestorePoint? GetRestorePoint(string id)
+	{
+		if (currentGameData is not IGameDataWithCheckpoints checkpoints)
+			return null;
+
+		return checkpoints.GetRestorePoint(id);
+	}
+
 	protected override void OnExiting(object sender, EventArgs args)
 	{
+		SynchronizationContext.SetSynchronizationContext(null);
+		
+		if (currentGameData != null)
+		{
+			if (MissionManager.Instance?.CurrentMission != null)
+			{
+				MissionManager.Instance.AbandonMissionForGameExit();
+			}
+
+			Task.Run(() =>
+			{
+				SaveCurrentGame(true).GetAwaiter().GetResult();
+			}).GetAwaiter().GetResult();
+		}
+		
 		SetGameMode(GameMode.Loading);
         
 		settingsManager.Save();
@@ -292,6 +323,8 @@ internal sealed class SociallyDistantGame :
 
 	private async Task DoUserInitialization()
 	{
+		await SplashScreen.Show();
+		
 		InitializationFlow flow = GetInitializationFlow();
 
 		IGameData? saveToLoad = null;
@@ -302,9 +335,7 @@ internal sealed class SociallyDistantGame :
 		}
 		else if (flow == InitializationFlow.MostRecentSave)
 		{
-			saveToLoad = ContentManager.GetContentOfType<IGameData>()
-				.OrderByDescending(x => x.PlayerInfo.LastPlayed)
-				.FirstOrDefault();
+			saveToLoad = ContentManager.GetContentOfType<IGameData>().MaxBy(x => x.PlayerInfo.LastPlayed);
 		}
 
 		if (saveToLoad != null)
@@ -313,7 +344,9 @@ internal sealed class SociallyDistantGame :
 			return;
 		}
 
-		if (flow == InitializationFlow.MostRecentSave)
+		var noAccounts = !ContentManager.GetContentOfType<IGameData>().Any();
+		
+		if (flow == InitializationFlow.MostRecentSave || noAccounts)
 			await StartCharacterCreator();
 		else 
 			await GoToLoginScreen();
@@ -339,6 +372,11 @@ internal sealed class SociallyDistantGame :
 
 		try
 		{
+			if (gameToLoad is IGameDataWithCheckpoints checkpointGame)
+			{
+				await checkpointGame.RecoverSaneCheckpointOnInsaneGameExit();
+			}
+			
 			this.loadedPlayerInfo = gameToLoad.PlayerInfo;
 			this.loadedPlayerInfo.LastPlayed = DateTime.UtcNow;
 
@@ -444,6 +482,8 @@ internal sealed class SociallyDistantGame :
 		if (currentGameData == null)
 			return;
 
+		loadedPlayerInfo.Comment = MissionManager.Instance?.CurrentMission?.Name ?? loadedPlayerInfo.Comment;
+		
 		await currentGameData.UpdatePlayerInfo(loadedPlayerInfo);
 		await currentGameData.SaveWorld(WorldManager);
 
@@ -467,6 +507,16 @@ internal sealed class SociallyDistantGame :
 		this.playerInfoSubject.OnNext(this.loadedPlayerInfo);
 
 		worldManager.WipeWorld();
+	}
+
+	public async Task<IGameRestorePoint?> CreateRestorePoint(string id)
+	{
+		if (IsGameActive)
+			await SaveCurrentGame(true);
+
+		return currentGameData != null
+			? await currentGameData.CreateRestorePoint(id)
+			: null;
 	}
 
 	/// <inheritdoc />
@@ -502,6 +552,9 @@ internal sealed class SociallyDistantGame :
 		// Report new timing data to the rest of the game so it can be accessed statically
 		timeData.Update(gameTime);
 
+		// Dispatch any events waiting in the event bus queues.
+		eventBus.Dispatch();
+		
 		if (!initialized && initializeTask.IsCompleted)
 		{
 			if (!initializeTask.IsCompletedSuccessfully)

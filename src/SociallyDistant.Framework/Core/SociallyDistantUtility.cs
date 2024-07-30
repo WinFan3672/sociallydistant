@@ -35,6 +35,77 @@ namespace SociallyDistant.Core.Core
 		
 		public static readonly string PlayerHomeId = "player";
 
+		public static IEnumerable<Exception> UnravelAggregateExceptions(AggregateException? aggregate)
+		{
+			if (aggregate == null)
+				yield break;
+
+			foreach (Exception ex in aggregate.InnerExceptions)
+			{
+				if (ex is AggregateException damnit)
+				{
+					foreach (Exception fuck in UnravelAggregateExceptions(damnit))
+						yield return fuck;
+				}
+				else
+				{
+					if (ex.InnerException is AggregateException argh)
+					{
+						foreach (var ass in UnravelAggregateExceptions(argh))
+							yield return ass;
+					}
+					else if (ex.InnerException != null)
+						yield return ex.InnerException;
+
+					yield return ex;
+				}
+			}
+		}
+
+		public static TimeSpan ParseDurationString(string timeoutValue)
+		{
+			var minutes = 0;
+			var seconds = 0;
+			var milliseconds = 0;
+		
+			// I need a minute...
+			int minuteIndex = timeoutValue.IndexOf('m', StringComparison.Ordinal);
+
+			if (minuteIndex != -1)
+			{
+				string number = timeoutValue.Substring(0, minuteIndex).Trim();
+				minutes = int.Parse(number);
+
+				timeoutValue = timeoutValue.Substring(minuteIndex + 1);
+			}
+		
+			// Gimme a sec...
+			int secondIndex = timeoutValue.IndexOf('s', StringComparison.Ordinal);
+			if (secondIndex != -1)
+			{
+				string number = timeoutValue.Substring(0, secondIndex).Trim();
+				seconds = int.Parse(number);
+
+				timeoutValue = timeoutValue.Substring(secondIndex + 1);
+			}
+		
+			// Millisec?
+			int millisecIndex = timeoutValue.IndexOf("ms", StringComparison.Ordinal);
+			if (millisecIndex != -1)
+			{
+				string number = timeoutValue.Substring(0, millisecIndex).Trim();
+				milliseconds = int.Parse(number);
+
+				timeoutValue = timeoutValue.Substring(millisecIndex + 1);
+			}
+		
+			// Add minutes to seconds, then seconds to milliseconds, then boom. We're done.
+			seconds += minutes * 60;
+			milliseconds += seconds * 1000;
+
+			return TimeSpan.FromMilliseconds(milliseconds);
+		}
+		
 		public static string ToUnix(this string source)
 		{
 			var builder = new StringBuilder(source.Length);

@@ -7,6 +7,8 @@ namespace SociallyDistant.Core.OS.Devices
 {
 	public interface IComputer
 	{
+		string? NarrativeId { get; }
+		
 		bool IsPlayer { get; }
 		
 		string Name { get; }
@@ -14,6 +16,8 @@ namespace SociallyDistant.Core.OS.Devices
 		bool FindUserByName(string username, out IUser? user);
 		
 		IUser SuperUser { get; }
+		
+		IEnumerable<IUser> Users { get; }
 
 		/// <summary>
 		///		Forks the given process and executes the specified program with the given

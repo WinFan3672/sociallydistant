@@ -256,7 +256,11 @@ namespace SociallyDistant.GameplaySystems.Missions
 			missionController.DisableAbandonment();
 			
 			shell.Setup(console);
-			await shell.RunParsedScript(startTree);
+			await shell.RunParsedScript(startTree!);
+
+			// edge case: if the very last objective set in a mission causes
+			// a mission fail, the game won't catch it unless we throw here.
+			missionController.ThrowIfFailed();
 			
 			missionController.EnableAbandonment();
 		}

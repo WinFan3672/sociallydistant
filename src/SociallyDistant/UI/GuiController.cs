@@ -111,6 +111,7 @@ public class GuiController : GameComponent,
                 desktopController.InfoPanelController.ShowClock = false;
                 desktopController.Logout();
                 desktop?.Dispose();
+                desktop = null;
             }
         }
 
@@ -148,6 +149,11 @@ public class GuiController : GameComponent,
         {
             desktopController.InfoPanelController.SetClock(context.WorldManager.World.GlobalWorldState.Value.Now);
         }
+    }
+
+    public IShellOverlay CreateOverlay()
+    {
+        return new ShellOverlay(this.guiService);
     }
 
     public bool OpenProgram(

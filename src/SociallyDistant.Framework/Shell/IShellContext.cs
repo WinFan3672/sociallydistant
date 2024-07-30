@@ -9,6 +9,8 @@ namespace SociallyDistant.Core.Shell
 {
 	public interface IShellContext
 	{
+		IShellOverlay CreateOverlay();
+        
 		bool OpenProgram(
 			IProgram programToOpen,
 			string[] arguments,

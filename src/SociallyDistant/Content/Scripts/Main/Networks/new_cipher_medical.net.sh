@@ -1,4 +1,4 @@
-#!network new_cipher_medical
+#!network newciphermedical
 
 build() {
   name "New Cipher Medical"

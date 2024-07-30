@@ -14,6 +14,10 @@ namespace SociallyDistant.Core.OS.Network
 	
 	public interface INetworkConnection : INetworkInterfaceEnumerator
 	{
+		public uint PublicAddress { get; }
+		public uint LocalAddress { get; }
+		public uint LoopbackAddress { get; }
+		
 		Guid Identifier { get; }
 		
 		bool Connected { get; }

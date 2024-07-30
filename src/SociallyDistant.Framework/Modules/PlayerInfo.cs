@@ -131,7 +131,7 @@ namespace SociallyDistant.Core.Modules
 				.FirstOrDefault(x => x.Name == elemName);
 
 			if (child != null)
-				field = DateTime.Parse(child.InnerText);
+				field = DateTime.Parse(child.InnerText, CultureInfo.InvariantCulture);
 			else
 				field = DateTime.UtcNow;
 		}

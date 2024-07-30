@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.Social;
 
 namespace SociallyDistant.Core.Core.Scripting.StandardModules
@@ -13,6 +14,12 @@ namespace SociallyDistant.Core.Core.Scripting.StandardModules
 			this.socialService = socialService;
 		}
 
+		[Function("playerhome")]
+		public string GetPlayerHome()
+		{
+			return Application.Instance.Context.Kernel.GetPlayerHomeDirectory();
+		}
+		
 		[Function("fullname")]
 		public string GetFullName(string narrativeIdentifier)
 		{

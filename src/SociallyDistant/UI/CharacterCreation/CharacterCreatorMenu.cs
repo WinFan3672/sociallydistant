@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using SociallyDistant.Architecture;
 using SociallyDistant.Core;
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.WorldData.Data;
 using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.Shell;
 using SociallyDistant.Core.Shell.Windowing;
@@ -157,6 +158,7 @@ Would you like to enable tutorials for this account?";
         playerInfo.Comment = "Prologue";
         playerInfo.UserName = nameEntry.Value.ToUnix();
         playerInfo.PlayerGender = (Gender)genderDropdown.SelectedIndex;
+        playerInfo.LastPlayed = DateTime.UtcNow;
 
         WorldManager.Instance.WipeWorld();
 

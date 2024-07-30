@@ -1,16 +1,23 @@
-﻿namespace SociallyDistant.GameplaySystems.Missions
+﻿using SociallyDistant.Core.Missions;
+
+namespace SociallyDistant.GameplaySystems.Missions
 {
 	public sealed class ObjectiveController
 	{
-		private readonly Action updateSignal;
-		private string name = string.Empty;
-		private string description = string.Empty;
-		private string? failReason;
-		private bool isOptional;
-		private bool failed;
-		private bool completed;
-		private string? hint;
+		private readonly ObjectiveKind kind;
+		private readonly Action        updateSignal;
+		private          string        name        = string.Empty;
+		private          string        description = string.Empty;
+		private          string?       failReason;
+		private          bool          isOptional;
+		private          bool          failed;
+		private          bool          completed;
+		private          string?       hint;
 
+		public Action? FailCallback { get; set; }
+		
+		public ObjectiveKind Kind => kind;
+		
 		public string Name
 		{
 			get => name;
@@ -67,9 +74,10 @@
 		public bool IsCompleted => completed;
 		public bool IsFailed => failed;
 		
-		public ObjectiveController(Action updateSignal)
+		public ObjectiveController(Action updateSignal, ObjectiveKind kind)
 		{
 			this.updateSignal = updateSignal;
+			this.kind = kind;
 		}
 
 		public void Complete()
@@ -86,6 +94,7 @@
 			failed = true;
 			completed = false;
 			updateSignal();
+			FailCallback?.Invoke();
 		}
 	}
 }

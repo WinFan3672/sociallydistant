@@ -10,6 +10,7 @@ namespace SociallyDistant.Core.Core.Scripting
 		private readonly IUser user;
 		private readonly IFileSystem hypervisorFileSystem = new HypervisorFileSystem();
 
+		public string? NarrativeId => null;
 		public bool IsPlayer => true;
 
 		/// <inheritdoc />
@@ -39,6 +40,14 @@ namespace SociallyDistant.Core.Core.Scripting
 
 		/// <inheritdoc />
 		public IUser SuperUser => user;
+
+		public IEnumerable<IUser> Users
+		{
+			get
+			{
+				yield break;
+			}
+		}
 
 		/// <inheritdoc />
 		public Task<ISystemProcess?> ExecuteProgram(ISystemProcess parentProcess, ITextConsole console, string programName, string[] arguments)

@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 using Serilog;
+using SociallyDistant.Core.Core.Events;
+using SociallyDistant.Core.EventBus;
 using SociallyDistant.Core.OS.Devices;
 using SociallyDistant.Core.OS.Network;
 using SociallyDistant.OS.Network;
@@ -212,6 +214,8 @@ namespace SociallyDistant.GameplaySystems.Networld
 			{
 				case PacketType.Ping:
 				{
+					EventBus.Post(new PingEvent(packet.SourceAddress, packet.DestinationAddress));
+                    
 					packet.SwapSourceAndDestination();
 					packet.PacketType = PacketType.Pong;
 					break;
@@ -279,7 +283,7 @@ namespace SociallyDistant.GameplaySystems.Networld
 			// Create the new device node... pretend this line of code just magically bought a computer.
 			// We don't know what computer it is but it has an Ethernet port and it's our job to
 			// wire it up.
-			var deviceNode = new DeviceNode(insideNetwork, simulatedDefaultGatewayAddress, networkAddress, computer, hostResolver);
+			var deviceNode = new DeviceNode(NetworkInterface.NetworkAddress, insideNetwork, simulatedDefaultGatewayAddress, networkAddress, computer, hostResolver);
 			devices.Add(deviceNode);
 			reservations.Add(networkAddress, deviceNode);
 

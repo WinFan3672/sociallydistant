@@ -127,16 +127,14 @@ namespace SociallyDistant.Core.Core.Scripting
 
 						return Task.FromResult<int>(0);
 					},
-					_ when returnType == typeof(Task) => async (name, args, console, context) =>
+					_ when returnType == typeof(Task) => (name, args, console, context) =>
 					{
 						ThrowIfTooFewArguments(name, stringCount, args);
 
 						string[] formal = args.Take(stringCount).ToArray();
 						string[] optional = args.Skip(stringCount).ToArray();
 
-						var task = (Task) InvokeMethod(method, formal, optional, reachedArray);
-						await task;
-						return 0;
+						return Wait( (Task) InvokeMethod(method, formal, optional, reachedArray));
 					},
 					_ when returnType == typeof(Task<int>) => async (name, args, console, context) =>
 					{
@@ -171,8 +169,15 @@ namespace SociallyDistant.Core.Core.Scripting
 
 				this.DeclareFunction(attribute.Name, new ScriptDelegateFunction(scriptDelegate));
 			}
+			
 		}
 
+		private async Task<int> Wait(Task task)
+		{
+			await task;
+			return 0;
+		}
+		
 		private object InvokeMethod(MethodInfo method, string[] formalArgs, string[] optionalArgs, bool useOptionalArray)
 		{
 			var args = new object[useOptionalArray ? formalArgs.Length + 1 : formalArgs.Length];
@@ -183,7 +188,14 @@ namespace SociallyDistant.Core.Core.Scripting
 			if (useOptionalArray)
 				args[^1] = optionalArgs;
 
-			return method.Invoke(this, args);
+			try
+			{
+				return method.Invoke(this, args);
+			}
+			catch (Exception ex)
+			{
+				throw;
+			}
 		}
 		
 		private void ThrowIfTooFewArguments(string name, int expected, string[] provided)

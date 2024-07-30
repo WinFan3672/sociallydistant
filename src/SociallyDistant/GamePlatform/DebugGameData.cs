@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.Buffers;
 using System.Diagnostics;
 using Microsoft.Xna.Framework.Graphics;
 using Serilog;
@@ -45,6 +46,11 @@ namespace SociallyDistant.GamePlatform
 		{
 			Log.Information("If you were in an actual game, we'd be saving the world to disk right now. But this is the debug world, so we're not.");
 			return Task.CompletedTask;
+		}
+
+		public Task<IGameRestorePoint?> CreateRestorePoint(string id)
+		{
+			return Task.FromResult<IGameRestorePoint?>(new DebugRestorePoint(this, id));
 		}
 	}
 }

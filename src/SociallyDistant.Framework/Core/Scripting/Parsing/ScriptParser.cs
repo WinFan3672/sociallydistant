@@ -872,6 +872,8 @@ namespace SociallyDistant.Core.Core.Scripting.Parsing
 			if (redirectionType != FileRedirectionType.None)
 			{
 				tokenView.Advance();
+				SkipWhiteSpace(tokenView);
+				
 				filePath = await ParseArgument(tokenView, true);
 			}
 

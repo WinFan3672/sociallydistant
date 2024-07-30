@@ -12,6 +12,9 @@ namespace SociallyDistant.Core.OS.FileSystems.Host
 		{
 			this.hostPath = hostPath;
 			this.mountManager = new MountManager(this);
+
+			if (!Directory.Exists(hostPath))
+				Directory.CreateDirectory(hostPath);
 		}
 		
 		/// <inheritdoc />

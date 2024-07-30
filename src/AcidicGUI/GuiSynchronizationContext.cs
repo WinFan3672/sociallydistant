@@ -1,6 +1,7 @@
 // https://github.com/vchelaru/FlatRedBall/blob/NetStandard/Engines/FlatRedBallXNA/FlatRedBall/Managers/SingleThreadSynchronizationContext.cs
 
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace AcidicGUI;
 

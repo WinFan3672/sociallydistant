@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.IO.Compression;
 using System.Net.Mime;
 using System.Text;
 using Microsoft.Xna.Framework.Graphics;
@@ -10,12 +11,15 @@ using SociallyDistant.Core.WorldData;
 
 namespace SociallyDistant.GamePlatform
 {
-	public class LocalGameData : IGameData
+	public class LocalGameData : IGameDataWithCheckpoints
 	{
-		public static string BaseDirectory = Path.Combine(SociallyDistantGame.GameDataPath, "users");
-
-		public static readonly string WorldFileName = "world.bin";
+		public static          string BaseDirectory      = Path.Combine(SociallyDistantGame.GameDataPath, "users");
+		public static readonly string WorldFileName      = "world.bin";
 		public static readonly string PlayerInfoFileName = "playerinfo.xml";
+
+		private readonly Dictionary<string, LocalCheckpoint> checkpoints = new();
+
+		public string CheckpointsPath => Path.Combine(LocalFilePath!, "recovery");
 		
 		/// <inheritdoc />
 		public PlayerInfo PlayerInfo { get; private set; }
@@ -103,7 +107,9 @@ namespace SociallyDistant.GamePlatform
 			return true;
 		}
 		
-		public static LocalGameData TryLoadFromDirectory(string directory)
+		
+		
+		public static LocalGameData? TryLoadFromDirectory(string directory)
 		{
 			if (!Directory.Exists(directory))
 				return null;
@@ -112,7 +118,7 @@ namespace SociallyDistant.GamePlatform
 
 			if (!data.LoadPlayerData())
 				return null;
-
+            
 			return data;
 		}
 
@@ -143,7 +149,87 @@ namespace SociallyDistant.GamePlatform
 
 			await memory.CopyToAsync(fileStream);
 		}
-		
+
+		public async Task<IGameRestorePoint?> CreateRestorePoint(string id)
+		{
+			var guid = Guid.NewGuid();
+			var path = Path.Combine(CheckpointsPath, guid + ".bin");
+
+			if (!Directory.Exists(CheckpointsPath))
+				Directory.CreateDirectory(CheckpointsPath);
+
+			var checkpoint = new LocalCheckpoint(path);
+			checkpoint.Id = id;
+			
+			if (!checkpoints.ContainsKey(id))
+				checkpoints.Add(id, checkpoint);
+			else
+			{
+				checkpoints[id].Dispose();
+				checkpoints[id] = checkpoint;
+			}
+
+
+			await ExtractWorldData(checkpoint.WorldStream);
+
+			var devices = Path.Combine(LocalFilePath!, "devices");
+
+			if (!Directory.Exists(devices))
+				Directory.CreateDirectory(devices);
+			
+			await Task.Run(() =>
+			{
+				ZipFile.CreateFromDirectory(devices, checkpoint.HomesStream);
+			});
+
+			await checkpoint.Save();
+            
+			return checkpoint;
+		}
+
+		public async Task RecoverSaneCheckpointOnInsaneGameExit()
+		{
+			await LoadCheckpoints();
+		}
+
+		public IGameRestorePoint? GetRestorePoint(string id)
+		{
+			if (!checkpoints.TryGetValue(id, out var checkpoint))
+				return null;
+
+			return checkpoint;
+		}
+
+		private async Task LoadCheckpoints()
+		{
+			this.checkpoints.Clear();
+
+			if (!Directory.Exists(CheckpointsPath))
+				return;
+
+			foreach (string checkpointPath in Directory.EnumerateFiles(CheckpointsPath, "*.bin", SearchOption.TopDirectoryOnly))
+			{
+				var checkpoint = await LocalCheckpoint.TryLoadFromFile(checkpointPath);
+				if (checkpoint == null)
+					continue;
+				
+				if (!checkpoints.ContainsKey(checkpoint.Id))
+					checkpoints.Add(checkpoint.Id, checkpoint);
+				else
+				{
+					if (checkpoints[checkpoint.Id].Date < checkpoint.Date)
+					{
+						checkpoints[checkpoint.Id].Dispose();
+						checkpoints[checkpoint.Id] = checkpoint;
+					}
+					else
+					{
+						checkpoint.Dispose();
+					}
+				}
+			}
+		}
+
 		public static async Task<LocalGameData> CreateNewGame(PlayerInfo playerInfo, World world)
 		{
 			var gameIndex = 0;

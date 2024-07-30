@@ -1,9 +1,9 @@
 ﻿#nullable enable
-using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Serilog;
 using SociallyDistant.Core;
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.Events;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.WorldData.Data;
 using SociallyDistant.Core.Missions;
@@ -12,6 +12,7 @@ using SociallyDistant.Core.OS.Devices;
 using SociallyDistant.Core.Social;
 using SociallyDistant.Core.WorldData;
 using SociallyDistant.GameplaySystems.Social;
+using SociallyDistant.UI.Missions;
 
 namespace SociallyDistant.GameplaySystems.Missions
 {
@@ -21,20 +22,25 @@ namespace SociallyDistant.GameplaySystems.Missions
 		private readonly        SociallyDistantGame       gameManager = null!;
 		private readonly        StartMissionCommand       startMissionCommand;
 		private readonly        MissionMailerHook         missionMailerHook;
-		private readonly        IMissionController        missionController;
+		private readonly        MissionController         missionController;
+		private readonly        TaskRefreshHook           taskRefreshHook;
 		private                 CancellationTokenSource?  missionAnandonSource;
 		private                 IMission?                 currentMission;
 		private                 Task?                     currentMissionTask;
+		private                 Task?                     completionScreen;
+		private                 IDisposable?              gameModeObserver;
 		
 		private WorldManager WorldManager => WorldManager.Instance;
 		private ISocialService SocialService => gameManager.SocialService;
 
+		public IObservable<IEnumerable<IObjective>> CurrentObjectivesObservable => missionController.ObjectivesObservable;
+		
 		public IMission? CurrentMission => currentMission;
 
 		public bool CAnAbandonMissions => CurrentMission != null && missionController.CanAbandonMission;
 		public bool CanStartMissions => gameManager.CurrentGameMode == GameMode.OnDesktop
 		                                && (this.currentMission == null || missionController.CanAbandonMission);
-
+        
 		internal MissionManager(SociallyDistantGame game) : base(game)
 		{
 			singleton.SetInstance(this);
@@ -43,8 +49,11 @@ namespace SociallyDistant.GameplaySystems.Missions
 			this.startMissionCommand = new StartMissionCommand(this);
 			this.missionMailerHook = new MissionMailerHook(this);
 			this.missionController = new MissionController(this, this.WorldManager, this.gameManager);
+			taskRefreshHook = new TaskRefreshHook(this);
+			gameModeObserver = game.GameModeObservable.Subscribe(OnGameModeChanged);
 		}
 		
+		/// <inheritdoc />
 		public override void Initialize()
 		{
 			base.Initialize();
@@ -52,67 +61,174 @@ namespace SociallyDistant.GameplaySystems.Missions
 			gameManager.UriManager.RegisterSchema("mission", new MissionUriSchemeHandler(this));
 			gameManager.ScriptSystem.RegisterGlobalCommand("start_mission", startMissionCommand);
 			gameManager.ScriptSystem.RegisterHookListener(CommonScriptHooks.AfterWorldStateUpdate, missionMailerHook);
+			gameManager.ScriptSystem.RegisterHookListener(CommonScriptHooks.AfterContentReload, taskRefreshHook);
 		}
 
+		/// <inheritdoc />
 		protected override void Dispose(bool disposing)
 		{
 			base.Dispose(disposing);
 
 			if (!disposing)
 				return;
-			
+
+			gameModeObserver?.Dispose();
 			gameManager.UriManager.UnregisterSchema("mission");
 			gameManager.ScriptSystem.UnregisterHookListener(CommonScriptHooks.AfterWorldStateUpdate, missionMailerHook);
 			gameManager.ScriptSystem.UnregisterGlobalCommand("start_mission");
+			gameManager.ScriptSystem.UnregisterHookListener(CommonScriptHooks.AfterContentReload, taskRefreshHook);
 			singleton.SetInstance(null);
 		}
 
+		private void OnGameModeChanged(GameMode newGameMode)
+		{
+			if (newGameMode == GameMode.OnDesktop)
+			{
+				missionController.ResetFailedState();
+				var protectedState = WorldManager.World.ProtectedWorldData.Value;
+
+				var missionId = protectedState.CurrentMissionId;
+				var checkpoints = protectedState.Checkpoints?.ToArray() ?? Array.Empty<string>();
+
+				IMission? mission = GetMissionById(missionId);
+				if (mission == null)
+					return;
+
+				var checkpointsList = checkpoints.Select(x => SociallyDistantGame.Instance.GetRestorePoint(x)!).Where(x => x != null!).ToArray();
+				
+				missionController.SetCheckpointHistoryInternal(checkpointsList);
+				StartMission(mission);
+			}
+			else
+			{
+				missionController.AbandonAllObjectivesInternal();
+			
+				this.missionAnandonSource?.Cancel();
+				this.currentMission = null;
+				this.currentMissionTask = null;
+
+				missionController.DropCheckpoints();
+			}
+		}
+        
+		/// <inheritdoc />
 		public override void Update(GameTime gameTime)
 		{
 			base.Update(gameTime);
+
+			if (completionScreen != null)
+			{
+				if (completionScreen.IsCompleted)
+					completionScreen = null;
+				
+				return;
+			}
+			
 			if (currentMissionTask != null)
 			{
 				if (currentMissionTask.Exception != null)
 				{
+					var failException = SociallyDistantUtility.UnravelAggregateExceptions(currentMissionTask.Exception).OfType<MissionFailedException>().FirstOrDefault();
+					if (failException != null)
+					{
+						missionController.ResetFailedState();
+						completionScreen = MissionFailScreen.Show(currentMission, failException.Message);
+						return;
+					}
+					
+					gameManager.Shell.ShowExceptionMessage(currentMissionTask.Exception);
 					Log.Error(currentMissionTask.Exception.ToString());
-					AbandonMission();
+					completionScreen = AbandonMission();
 				}
 				else if (currentMissionTask.IsCompleted)
 				{
-					CompleteMission();
+					completionScreen = CompleteMission();
 				}
+				
 			}
 		}
 
-		private async void CompleteMission()
+		private async Task CompleteMission()
 		{
 			if (this.currentMission == null)
 				return;
 
 			ProtectedWorldState protectedState = WorldManager.World.ProtectedWorldData.Value;
 			var missionList = new List<string>();
-			missionList.AddRange(protectedState.CompletedMissions);
+			
+			if (protectedState.CompletedInteractions != null!)
+				missionList.AddRange(protectedState.CompletedMissions);
+			
 			missionList.Add(this.currentMission.Id);
 
 			protectedState.CompletedMissions = missionList;
 
 			WorldManager.World.ProtectedWorldData.Value = protectedState;
 
+			await MissionCompleteScreen.Show(currentMission, missionController);
+			
+			var completeEvent = new MissionCompleteEvent(currentMission);
+            
 			this.currentMission = null;
 			this.currentMissionTask = null;
 			this.missionAnandonSource = null;
-
+			
+			EventBus.Post(completeEvent);
 			await gameManager.SaveCurrentGame(false);
 		}
 
-		public void AbandonMission()
+		internal async Task RetryMission()
+		{
+			if (currentMission == null)
+				return;
+
+			missionController.AbandonAllObjectivesInternal();
+			this.missionAnandonSource?.Cancel();
+			this.currentMissionTask = null;
+
+			var mission = currentMission;
+
+			this.currentMission = null;
+
+			await missionController.RestoreCheckpoint();
+
+			StartMission(mission);
+		}
+		
+		internal async Task AbandonMission()
 		{
 			if (this.currentMission == null)
 				return;
 
+			var abandonEvent = new MissionAbandonEvent(currentMission);
+
+			missionController.AbandonAllObjectivesInternal();
+			
 			this.missionAnandonSource?.Cancel();
 			this.currentMission = null;
 			this.currentMissionTask = null;
+
+			await missionController.RestoreMissionCheckpoint();
+
+			var protectedState = WorldManager.World.ProtectedWorldData.Value;
+			protectedState.CurrentMissionId = string.Empty;
+			protectedState.Checkpoints = Array.Empty<string>();
+			WorldManager.World.ProtectedWorldData.Value = protectedState;
+			
+			EventBus.Post(abandonEvent);
+		}
+
+		internal void AbandonMissionForGameExit()
+		{
+			if (CurrentMission == null)
+				return;
+
+			missionController.AbandonAllObjectivesInternal();
+			missionAnandonSource?.Cancel();
+
+			currentMission = null;
+			currentMissionTask = null;
+			missionController.RestoreCheckpoint().GetAwaiter().GetResult();
 		}
 		
 		public bool StartMission(IMission mission)
@@ -122,19 +238,30 @@ namespace SociallyDistant.GameplaySystems.Missions
 			
 			if (!mission.IsAvailable(WorldManager.World))
 				return false;
-			
-			if (this.currentMission != null)
-			{
-				if (!missionController.CanAbandonMission)
-					return false;
-				
-				this.AbandonMission();
-			}
 
+			if (this.currentMission != null)
+				return false;
+
+			var protectedState = WorldManager.World.ProtectedWorldData.Value;
+			protectedState.CurrentMissionId = mission.Id;
+			WorldManager.World.ProtectedWorldData.Value = protectedState;
+            
 			this.currentMission = mission;
 			this.missionAnandonSource = new CancellationTokenSource();
-			this.currentMissionTask = this.currentMission.StartMission(this.missionController, this.missionAnandonSource.Token);
+			this.currentMissionTask = StartMissionInternal();
 			return true;
+		}
+
+		private async Task StartMissionInternal()
+		{
+			if (currentMission == null)
+				return;
+
+			if (missionAnandonSource == null)
+				return;
+
+			await missionController.SetMissionCheckpoint(currentMission.Id);
+			await this.currentMission.StartMission(this.missionController, this.missionAnandonSource.Token);
 		}
 		
 		public IMission? GetMissionById(string missionId)
@@ -291,6 +418,22 @@ namespace SociallyDistant.GameplaySystems.Missions
 			}
 		}
 
+		private class TaskRefreshHook : IHookListener
+		{
+			private readonly MissionManager missionManager;
+			
+			public TaskRefreshHook(MissionManager missionManager)
+			{
+				this.missionManager = missionManager;
+			}
+			
+			public Task ReceiveHookAsync(IGameContext game)
+			{
+				missionManager.missionController.RefreshTaskIdsInternal(game.ContentManager);
+				return Task.CompletedTask;
+			}
+		}
+		
 		public static MissionManager? Instance => singleton.Instance;
 	}
 }

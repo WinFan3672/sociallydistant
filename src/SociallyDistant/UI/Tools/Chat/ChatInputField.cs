@@ -15,12 +15,25 @@ public sealed class ChatInputField : Widget,
     private readonly InputField             inputField = new();
     private readonly ConversationBranchList branchList = new();
     
+    public event Action<string>? OnSubmit
+    {
+        add => inputField.OnSubmit += value;
+        remove => inputField.OnSubmit -= value;
+    }
+    
     public ChatInputField()
     {
         inputField.Placeholder = "Send message...";
         inputField.WordWrapped = true;
         Children.Add(inputField);
         Children.Add(branchList);
+        
+        inputField.OnValueChanged += OnQueryChanged;
+    }
+
+    private void OnQueryChanged(string query)
+    {
+        branchList.Filter = query;
     }
 
     protected override Point GetContentSize(Point availableSize)
@@ -60,5 +73,10 @@ public sealed class ChatInputField : Widget,
     public void SetTextWithoutNotify(string text)
     {
         this.inputField.Value = text;
+    }
+
+    public bool PickSelectedBranchIfAny()
+    {
+        return branchList.PickSelectedIfAny();
     }
 }

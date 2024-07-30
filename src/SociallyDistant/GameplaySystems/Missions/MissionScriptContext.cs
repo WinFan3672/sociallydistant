@@ -2,20 +2,23 @@
 using System.Diagnostics;
 using Serilog;
 using SociallyDistant.Core.Core.Scripting;
+using SociallyDistant.Core.Core.Scripting.Consoles;
 using SociallyDistant.Core.Core.Scripting.GlobalCommands;
 using SociallyDistant.Core.Core.Scripting.StandardModules;
 using SociallyDistant.Core.Missions;
 using SociallyDistant.Core.OS.Devices;
+using SociallyDistant.Core.OS.FileSystems.Host;
 
 namespace SociallyDistant.GameplaySystems.Missions
 {
 	public sealed class MissionScriptContext : IScriptExecutionContext
 	{
-		private readonly ScriptModuleManager modules = new();
-		private readonly ScriptFunctionManager functions = new();
+		private readonly ScriptModuleManager        modules   = new();
+		private readonly ScriptFunctionManager      functions = new();
 		private readonly Dictionary<string, string> variables = new(0);
-		private readonly IMission mission;
-		private readonly IMissionController missionController;
+		private readonly IMission                   mission;
+		private readonly IMissionController         missionController;
+		private readonly MissionModule              missionModule;
 
 		public MissionScriptContext(IMissionController controller, IMission mission)
 		{
@@ -24,6 +27,9 @@ namespace SociallyDistant.GameplaySystems.Missions
 
 			this.modules.RegisterModule(new ShellHelpersModule(missionController.Game));
 			this.modules.RegisterModule(new NpcModule(missionController.Game.SocialService));
+			
+			missionModule = new MissionModule(this, missionController, mission);
+			this.modules.RegisterModule(missionModule);
 		}
 
 		/// <inheritdoc />
@@ -32,7 +38,8 @@ namespace SociallyDistant.GameplaySystems.Missions
 		/// <inheritdoc />
 		public string GetVariableValue(string variableName)
 		{
-			if (variables.TryGetValue(variableName, out string value))
+			missionController.ThrowIfFailed();
+			if (variables.TryGetValue(variableName, out string? value))
 				return value;
 
 			return string.Empty;
@@ -41,12 +48,14 @@ namespace SociallyDistant.GameplaySystems.Missions
 		/// <inheritdoc />
 		public void SetVariableValue(string variableName, string value)
 		{
+			missionController.ThrowIfFailed();
 			variables[variableName] = value;
 		}
 
 		/// <inheritdoc />
 		public async Task<int?> TryExecuteCommandAsync(string name, string[] args, ITextConsole console, IScriptExecutionContext? callSite = null)
 		{
+			missionController.ThrowIfFailed();
 			int? functionResult = await functions.CallFunction(name, args, console, callSite ?? this);
 			if (functionResult != null)
 				return functionResult;
@@ -57,21 +66,6 @@ namespace SociallyDistant.GameplaySystems.Missions
 			
 			switch (name)
 			{
-				case "objective":
-				case "challenge":
-				{
-					if (args.Length < 1)
-						throw new InvalidOperationException($"{name}: Invalid objective/challenge directive. At least one argument is required to specify the objective type.");
-
-					if (!Enum.TryParse(args[0], true, out ObjectiveType objectiveType))
-						throw new InvalidOperationException($"{name}: Invalid objective/challenge directive. Failed to parse objective type. Unrecognized type {args[0]}.");
-					
-					bool isChallenge = name == "challenge";
-					string[] parameters = args.Skip(1).ToArray();
-
-					await HandleObjective(callSite ?? this, console, objectiveType, isChallenge, parameters);
-					return 0;
-				}
 				case "worldflag":
 				{
 					var worldFlagCommand = new WorldFlagCommand(this.missionController.WorldManager);
@@ -90,64 +84,40 @@ namespace SociallyDistant.GameplaySystems.Missions
 
 			return null;
 		}
-
-		private async Task HandleObjective(IScriptExecutionContext context, ITextConsole console, ObjectiveType objectiveType, bool isChallenge, string[] parameters)
-		{
-			IObjectiveHandle handle = missionController.CreateObjective(string.Empty, string.Empty, isChallenge);
-
-			switch (objectiveType)
-			{
-				case ObjectiveType.Scripted:
-				{
-					if (parameters.Length < 1)
-						throw new InvalidOperationException("Scripted objectives require at least one parameter to specify the command to run.");
-
-					string commandName = parameters[0];
-					string[] commandArgs = parameters.Skip(1).ToArray();
-					
-					// create the objective context so the script system has access to objective-specific commands
-					var objectiveContext = new ObjectiveScriptContext(context, handle);
-					
-					// Run the command and wait. 
-					int? result = await objectiveContext.TryExecuteCommandAsync(commandName, commandArgs, console, this);
-					
-					// if we got a null, the command wasn't found
-					if (result == null)
-					{
-						HandleCommandNotFound(commandName, commandArgs, console);
-						return;
-					}
-					
-					// if we get a 0 and the objective isn't already failed, we can complete it
-					if (result == 0 && !handle.IsFAiled)
-						handle.MarkCompleted();
-
-					break;
-				}
-				default:
-				{
-					Log.Error($"Unrecognized objective type {objectiveType}. Mission script is likely written for a different build of the game. Objective will be marked as completed.");
-					handle.MarkCompleted();
-					break;
-				}
-			}
-		}
 		
 		/// <inheritdoc />
 		public ITextConsole OpenFileConsole(ITextConsole realConsole, string filePath, FileRedirectionType mode)
 		{
+			missionController.ThrowIfFailed();
+			var fs = this.missionController.Game.DeviceManager.WorldFileSystem;
+
+			if (mode == FileRedirectionType.Input)
+			{
+				return new FileInputConsole(realConsole, fs.OpenRead(filePath));
+			}
+			else if (mode == FileRedirectionType.Overwrite)
+			{
+				return new FileOutputConsole(realConsole, missionModule.FastForwarding ? Stream.Null : fs.OpenWrite(filePath));
+			}
+			else if (mode == FileRedirectionType.Append)
+			{
+				return new FileOutputConsole(realConsole, missionModule.FastForwarding ? Stream.Null : fs.OpenWriteAppend(filePath));
+			}
+            
 			return realConsole;
 		}
 
 		/// <inheritdoc />
 		public void HandleCommandNotFound(string name, string[] args, ITextConsole console)
 		{
+			missionController.ThrowIfFailed();
 			throw new InvalidOperationException($"{Title}: {name}: Command not found. Mission will be forcibly abandoned and game will be reset.");
 		}
 
 		/// <inheritdoc />
 		public void DeclareFunction(string name, IScriptFunction body)
 		{
+			missionController.ThrowIfFailed();
 			functions.DeclareFunction(name, body);
 		}
 	}

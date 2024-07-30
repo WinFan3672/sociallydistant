@@ -9,25 +9,18 @@ namespace SociallyDistant.GameplaySystems.Networld
 {
 	internal sealed class NetworkUpdateHook : IHookListener
 	{
-		private readonly IWorldManager worldHolder;
-
-		public NetworkUpdateHook(IWorldManager worldHolder)
-		{
-			this.worldHolder = worldHolder;
-		}
-		
 		/// <inheritdoc />
 		public async Task ReceiveHookAsync(IGameContext game)
 		{
 			// assign the player's public IP
-			IWorldDataObject<WorldPlayerData> playerData = worldHolder.World.PlayerData;
+			IWorldDataObject<WorldPlayerData> playerData = game.WorldManager.World.PlayerData;
 			ObjectId playerIsp = playerData.Value.PlayerInternetProvider;
-			if (worldHolder.World.InternetProviders.Any(x => x.InstanceId == playerIsp))
+			if (game.WorldManager.World.InternetProviders.Any(x => x.InstanceId == playerIsp))
 			{
 				if (playerData.Value.PublicNetworkAddress == 0)
 				{
 					WorldPlayerData playerValue = playerData.Value;
-					playerValue.PublicNetworkAddress = worldHolder.GetNextPublicAddress(playerIsp);
+					playerValue.PublicNetworkAddress = game.WorldManager.GetNextPublicAddress(playerIsp);
 					playerData.Value = playerValue;
 				}
 			}
@@ -43,7 +36,7 @@ namespace SociallyDistant.GameplaySystems.Networld
 			
 			foreach (INetworkAsset asset in game.ContentManager.GetContentOfType<INetworkAsset>())
 			{
-				await asset.Build(worldHolder);
+				await asset.Build(game.WorldManager);
 			}
 		}
 	}

@@ -17,7 +17,9 @@ namespace SociallyDistant.GamePlatform
 			{
 				LocalGameData? localData = LocalGameData.TryLoadFromDirectory(userDirectory);
 				if (localData != null)
+				{
 					yield return localData;
+				}
 			}
 		}
 	}

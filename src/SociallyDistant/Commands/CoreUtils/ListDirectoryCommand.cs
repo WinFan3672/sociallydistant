@@ -7,6 +7,57 @@ using SociallyDistant.Core.OS.Tasks;
 
 namespace SociallyDistant.Commands.CoreUtils
 {
+	[Command("rm")]
+	public class RemoveFileCommand : ScriptableCommand
+	{
+		public RemoveFileCommand(IGameContext gameContext) : base(gameContext)
+		{
+		}
+
+		protected override async Task OnExecute()
+		{
+			string filePath = string.Join(" ", Arguments);
+			string combined = PathUtility.Combine(CurrentWorkingDirectory, filePath);
+
+			if (FileSystem.DirectoryExists(combined))
+			{
+				await DeleteDirectory(combined);
+			}
+			else if (FileSystem.FileExists(combined))
+			{
+				await DeleteFile(combined);
+			}
+			else
+			{
+				Console.WriteLine($"{Name}: {combined}: No such file or directory");
+			}
+		}
+
+		private async Task DeleteDirectory(string directory)
+		{
+			foreach (string file in FileSystem.GetFiles(directory))
+			{
+				await DeleteFile(file);
+			}
+
+			foreach (string child in FileSystem.GetDirectories(directory))
+			{
+				await DeleteDirectory(child);
+			}
+
+			await Task.Delay(300);
+			FileSystem.DeleteDirectory(directory);
+			Console.WriteLine($"rm \"{directory}\"");
+		}
+        
+		private async Task DeleteFile(string file)
+		{
+			await Task.Delay(300);
+			FileSystem.DeleteFile(file);
+			Console.WriteLine($"rm \"{file}\"");
+		}
+	}
+	
 	[Command("ls")]
 	public class ListDirectoryCommand : ScriptableCommand
 	{
