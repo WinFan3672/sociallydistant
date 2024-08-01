@@ -2,7 +2,7 @@
 
 namespace SociallyDistant.Core.Core.Scripting
 {
-	public class ArrayView<TElementType>
+	public class ArrayView<TElementType> : IArrayView<TElementType>
 	{
 		private readonly TElementType[] collection;
 		private int index;

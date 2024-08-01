@@ -4,17 +4,6 @@ using AcidicGUI.Widgets;
 
 namespace SociallyDistant.GameplaySystems.WebPages
 {
-	[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-	public sealed class WebSiteAttribute : Attribute
-	{
-		public string HostName { get; }
-
-		public WebSiteAttribute(string hostname)
-		{
-			this.HostName = hostname;
-		}
-	}
-	
 	public abstract class WebSite : Widget
 	{
 		private readonly Stack<SavedState> history = new Stack<SavedState>();
@@ -29,8 +18,10 @@ namespace SociallyDistant.GameplaySystems.WebPages
 		private SavedState? currentState;
 
 		public WebPageAsset WebSiteAsset => myAsset;
-		
-		public string Url
+
+		protected string HostName => myAsset != null ? myAsset.HostName : string.Empty;
+
+			public string Url
 		{
 			get
 			{

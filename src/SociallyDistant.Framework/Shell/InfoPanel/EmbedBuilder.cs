@@ -1,3 +1,7 @@
+using AcidicGUI.ListAdapters;
+using AcidicGUI.Widgets;
+using SociallyDistant.Core.UI.Recycling;
+
 namespace SociallyDistant.Core.Shell.InfoPanel;
 
 public sealed class EmbedBuilder

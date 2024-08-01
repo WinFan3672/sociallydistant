@@ -2,18 +2,24 @@ using System.Diagnostics.Metrics;
 using System.Formats.Tar;
 using System.Text;
 using System.Xml.XPath;
+using AcidicGUI.Events;
 using AcidicGUI.Layout;
 using AcidicGUI.Rendering;
 using AcidicGUI.TextRendering;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace AcidicGUI.Widgets;
 
-public class TextWidget : Widget
+public class TextWidget : Widget,
+    IMouseClickHandler
 {
     private readonly List<TextElement> textElements = new();
     private readonly StringBuilder stringBuilder = new();
 
+    private static readonly Dictionary<string, Texture2D> images = new();
+    private static          IImageLocator?                imageLocator;
+    
     private int           previousWrapWidth;
     private Color?        color;
     private FontInfo      font;
@@ -27,6 +33,18 @@ public class TextWidget : Widget
     private int           selectionStart;
     private int           selectionLength;
 
+    public event Action<string>? LInkClicked;
+
+    /// <summary>
+    ///     Gets or sets a reference to an object implementing <see cref="IImageLocator"/> for retrieving images in TextWidget markup.
+    ///     Changing this property does not automatically tell extisting text widgets to re-render, you must do that yourself.
+    /// </summary>
+    public static IImageLocator? ImageLocator
+    {
+        get => imageLocator;
+        set => imageLocator = value;
+    }
+    
     public FontWeight FontWeight
     {
         get => fontWeight;
@@ -138,7 +156,7 @@ public class TextWidget : Widget
         }
 
         // Measure text elements
-        MeasureElements();
+        MeasureElements(wrapWidth);
 
         Point result = Point.Zero;
         int lineHeight = 0;
@@ -174,7 +192,7 @@ public class TextWidget : Widget
         {
             InvalidateMeasurements();
             previousWrapWidth = availableSpace.Width;
-            MeasureElements();
+            MeasureElements(availableSpace.Width);
         }
         
         // Break words and figure out where lines start and end.
@@ -260,6 +278,12 @@ public class TextWidget : Widget
                 lastOverride = element.MarkupData.FontOverride;
             }
 
+            if (element.MarkupData.IsImage && element.MarkupData.Image != null)
+            {
+                geometry.AddQuad(new LayoutRect(element.Position.X, element.Position.Y, element.MeasuredSize.Value.X, element.MeasuredSize.Value.Y), Color.White, element.MarkupData.Image);
+                continue;
+            }
+            
             var renderColor = element.MarkupData.IsSelected
                 ? GetVisualStyle().TextSelectionForeground
                 : (element.MarkupData.ColorOverride ?? TextColor) ?? GetVisualStyle().GetTextColor(this);
@@ -328,13 +352,14 @@ public class TextWidget : Widget
         {
             if (i == textElements.Count-1)
             {
-                var family = (textElements[i].MarkupData.FontOverride ?? font).GetFont(this);
-                var newMeasurement = family
-                    .Measure(textElements[i].Text.TrimEnd(), textElements[i].MarkupData.FontSize ?? FontSize,
-                        textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
-                
-                newMeasurement.Y = family.GetLineHeight(textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
-                textElements[i].MeasuredSize = newMeasurement;
+                if (!textElements[i].MarkupData.IsImage)
+                {
+                    var family = (textElements[i].MarkupData.FontOverride ?? font).GetFont(this);
+                    var newMeasurement = family.Measure(textElements[i].Text.TrimEnd(), textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
+
+                    newMeasurement.Y = family.GetLineHeight(textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
+                    textElements[i].MeasuredSize = newMeasurement;
+                }
             }
             
             var measurement = textElements[i].MeasuredSize.GetValueOrDefault();
@@ -345,20 +370,19 @@ public class TextWidget : Widget
             {
                 if (i > 0)
                 {
-                    offset.X -= textElements[i - 1].MeasuredSize!.Value.X;
+                    if (!textElements[i - 1].MarkupData.IsImage)
+                    {
+                        offset.X -= textElements[i - 1].MeasuredSize!.Value.X;
 
-                    var newFamily = (textElements[i - 1].MarkupData.FontOverride ?? font).GetFont(this);
-                    
-                    var newMeasurement = newFamily
-                        .Measure(textElements[i - 1].Text.TrimEnd(),
-                            textElements[i - 1].MarkupData.FontSize ?? FontSize,
-                            textElements[i - 1].MarkupData.Weight ?? FontWeight,
-                            textElements[i - 1].MarkupData.Italic);
+                        var newFamily = (textElements[i - 1].MarkupData.FontOverride ?? font).GetFont(this);
 
-                    newMeasurement.Y = newFamily.GetLineHeight(textElements[i-1].MarkupData.FontSize ?? FontSize, textElements[i-1].MarkupData.Weight ?? FontWeight, textElements[i-1].MarkupData.Italic);
-                    textElements[i - 1].MeasuredSize = newMeasurement;
+                        var newMeasurement = newFamily.Measure(textElements[i - 1].Text.TrimEnd(), textElements[i - 1].MarkupData.FontSize ?? FontSize, textElements[i - 1].MarkupData.Weight ?? FontWeight, textElements[i - 1].MarkupData.Italic);
 
-                    offset.X += newMeasurement.X;
+                        newMeasurement.Y = newFamily.GetLineHeight(textElements[i - 1].MarkupData.FontSize ?? FontSize, textElements[i - 1].MarkupData.Weight ?? FontWeight, textElements[i - 1].MarkupData.Italic);
+                        textElements[i - 1].MeasuredSize = newMeasurement;
+
+                        offset.X += newMeasurement.X;
+                    }
                 }
 
                 lines.Add((start, i, offset.X));
@@ -382,7 +406,7 @@ public class TextWidget : Widget
         return lines.ToArray();
     }
 
-    public bool TryFindLink(Vector2 position, out string? linkId)
+    public bool TryFindLink(Point position, out string? linkId)
     {
         linkId = null;
 
@@ -530,15 +554,65 @@ public class TextWidget : Widget
                 if (string.IsNullOrWhiteSpace(afterEquals))
                     return false;
 
-                markupData.Link = afterEquals;
+                if (!(afterEquals.StartsWith('"') && afterEquals.EndsWith('"') && afterEquals.Length >= 2))
+                    return false;
+
+                markupData.Link = afterEquals.Substring(1, afterEquals.Length - 2);
                 return true;
             }
             case "/link":
                 markupData.Link = null;
                 return true;
+            case "/font":
+                markupData.FontOverride = null;
+                return true;
+            case "font":
+            {
+                if (!Enum.TryParse(afterEquals, true, out PresetFontFamily preset))
+                    return false;
+
+                if (preset == PresetFontFamily.Custom)
+                    return false;
+
+                markupData.FontOverride = preset;
+                return true;
+            }
+            case "img":
+            {
+                if (string.IsNullOrEmpty(afterEquals))
+                    return false;
+
+                if (!(afterEquals.Length >= 2 && afterEquals.StartsWith('"') && afterEquals.EndsWith('"')))
+                    return false;
+
+                markupData.IsImage = true;
+                markupData.Image = TryGetImage(afterEquals.Substring(1, afterEquals.Length - 2));
+                return true;
+            }
+            case "/img":
+            {
+                markupData.IsImage = false;
+                markupData.Image = null;
+                return true;
+            }
         }
 
         return false;
+    }
+
+    private Texture2D? TryGetImage(string path)
+    {
+        if (images.TryGetValue(path, out Texture2D? image))
+            return image;
+        
+        if (imageLocator == null)
+            return null;
+
+        if (!imageLocator.TryLoadImage(path, out image))
+            return null;
+        
+        images.Add(path, image);
+        return image;
     }
     
     private void RebuildText()
@@ -684,6 +758,56 @@ public class TextWidget : Widget
                 }
             }
         }
+        
+        // Pass 2: Image merging
+        for (var i = 0; i < textElements.Count; i++)
+        {
+            var element = textElements[i];
+            if (!element.MarkupData.IsImage)
+                continue;
+
+            if (element.MarkupData.Image == null)
+                continue;
+
+            var start = i;
+            var end = i;
+
+            for (var j = start; j < textElements.Count; j++)
+            {
+                if (j == textElements.Count - 1)
+                {
+                    end = j;
+                    break;
+                }
+                
+                var endElement = textElements[j];
+
+                if (!endElement.MarkupData.IsImage)
+                {
+                    end = j;
+                    break;
+                }
+
+                if (element.MarkupData.Image != endElement.MarkupData.Image)
+                {
+                    end = j;
+                    break;
+                }
+            }
+
+            element.SourceEnd = textElements[end].SourceEnd;
+            
+            var altBuilder = new StringBuilder();
+            for (var k = end; k >= start; k--)
+            {
+                var altElement = textElements[k];
+                altBuilder.Insert(0, altElement.Text);
+                textElements.RemoveAt(k);
+            }
+
+            element.Text = altBuilder.ToString();
+            textElements.Insert(start, element);
+        }
     }
 
     public int GetLineCount()
@@ -709,6 +833,9 @@ public class TextWidget : Widget
     
     public int GetLineStart(int line)
     {
+        if (textElements.Count == 0)
+            return 0;
+        
         var lineStartElement = GetLineStartElement(line);
         return textElements[lineStartElement].SourceStart;
     }
@@ -784,7 +911,7 @@ public class TextWidget : Widget
         }
     }
     
-    private void MeasureElements()
+    private void MeasureElements(float maxWidthForImages)
     {
         FontInfo? lastOverride = null;
         IFontFamily? family = null;
@@ -800,10 +927,30 @@ public class TextWidget : Widget
                 lastOverride = textElements[i].MarkupData.FontOverride;
             }
 
-            Point measurement = family.Measure(textElements[i].Text, textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
-            measurement.Y = family.GetLineHeight(textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
+            if (textElements[i].MarkupData.IsImage && textElements[i].MarkupData.Image != null)
+            {
+                var image = textElements[i].MarkupData.Image!;
 
-            textElements[i].MeasuredSize = measurement;
+                var width = image.Width;
+                var height = image.Height;
+
+                if (width > maxWidthForImages && maxWidthForImages > 0)
+                {
+                    float aspect = (float)height / (float)width;
+                    float amountToScale = maxWidthForImages / (float)width;
+
+                    width = (int) Math.Round(width * amountToScale);
+                    height = (int) Math.Round(width * aspect);
+                }
+                
+                textElements[i].MeasuredSize = new Point(width, height);
+            }
+            else
+            {
+                Point measurement = family.Measure(textElements[i].Text, textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
+                measurement.Y = family.GetLineHeight(textElements[i].MarkupData.FontSize ?? FontSize, textElements[i].MarkupData.Weight ?? FontWeight, textElements[i].MarkupData.Italic);
+                textElements[i].MeasuredSize = measurement;
+            }
         }
     }
 
@@ -879,6 +1026,8 @@ public class TextWidget : Widget
         public bool        Strikethrough;
         public string?     Link;
         public bool        IsSelected;
+        public Texture2D?  Image;
+        public bool        IsImage;
     }
     
     private class TextElement
@@ -891,5 +1040,16 @@ public class TextWidget : Widget
         public int        SourceStart;
         public int        SourceEnd;
         public MarkupData MarkupData = new();
+    }
+
+    public void OnMouseClick(MouseButtonEvent e)
+    {
+        if (!this.TryFindLink(e.Position, out string? link))
+            return;
+
+        if (string.IsNullOrWhiteSpace(link))
+            return;
+        
+        LInkClicked?.Invoke(link);
     }
 }

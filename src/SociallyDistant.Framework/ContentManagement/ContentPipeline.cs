@@ -5,8 +5,10 @@ using Microsoft.Xna.Framework.Content;
 using Serilog;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Modules;
+using SociallyDistant.Core.News;
 using SociallyDistant.Core.OS.FileSystems;
 using SociallyDistant.Core.OS.FileSystems.Host;
+using SociallyDistant.Core.Social;
 
 namespace SociallyDistant.Core.ContentManagement;
 
@@ -16,9 +18,12 @@ public sealed class ContentPipeline : Microsoft.Xna.Framework.Content.ContentMan
     private readonly Dictionary<Type, List<string>>       assetsByType = new();
     private readonly ShellScriptLoader                    scriptLoader;
     private readonly Dictionary<string, ShellScriptAsset> scripts      = new();
+    private readonly IGameContext                         context;
+    private readonly Dictionary<string, Article>          articles = new();
     
     public ContentPipeline(IGameContext serviceProvider) : base(serviceProvider.GameInstance.Services, "/")
     {
+        this.context = serviceProvider;
         this.scriptLoader = new ShellScriptLoader(serviceProvider);
         
         var memoryFileSystem = new InMemoryFileSystem();
@@ -28,6 +33,12 @@ public sealed class ContentPipeline : Microsoft.Xna.Framework.Content.ContentMan
 
     public IEnumerable<T> LoadAll<T>()
     {
+        if (typeof(T).IsAssignableTo(typeof(IArticleAsset)))
+        {
+            foreach (Article article in articles.Values)
+                yield return (T) (object) article;
+        }
+        
         if (typeof(T).IsAssignableTo(typeof(ShellScriptAsset)))
         {
             foreach (ShellScriptAsset script in scripts.Values)
@@ -47,6 +58,14 @@ public sealed class ContentPipeline : Microsoft.Xna.Framework.Content.ContentMan
 
     public override T Load<T>(string assetName)
     {
+        if (typeof(T).IsAssignableTo(typeof(IArticleAsset)))
+        {
+            if (!articles.TryGetValue(assetName, out Article? article))
+                throw new ContentLoadException($"The asset '{assetName}' is not a valid news article or doesn't exist.");
+
+            return (T) (object) article;
+        }
+        
         if (typeof(T).IsAssignableTo(typeof(ShellScriptAsset)))
         {
             if (!scripts.TryGetValue(assetName, out ShellScriptAsset? script))
@@ -96,6 +115,15 @@ public sealed class ContentPipeline : Microsoft.Xna.Framework.Content.ContentMan
 
     private void DiscoverAssetType(string file)
     {
+        if (file.ToLower().EndsWith(".mdb"))
+        {
+            using var stream = vfs.OpenRead(file);
+            var articleData = ArticleData.FromSTream(stream);
+            var article = new Article(articleData, this.context);
+
+            articles.Add(file.Substring(0, file.LastIndexOf(".", StringComparison.Ordinal)), article);
+        }
+        
         if (file.ToLower().EndsWith(".sh"))
         {
             using var stream = vfs.OpenRead(file);

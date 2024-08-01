@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using SociallyDistant;
 using SociallyDistant.Core;
+using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.Serialization.Binary;
 

@@ -24,7 +24,7 @@ namespace SociallyDistant.GameplaySystems.WebPages
 					if (attribute == null)
 						continue;
 
-					yield return new WebPageAsset(type, attribute.HostName);
+					yield return new WebPageAsset(type, attribute);
 				}
 			}
 		}

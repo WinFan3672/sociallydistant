@@ -8,7 +8,7 @@ using SociallyDistant.GameplaySystems.WebPages;
 
 namespace SociallyDistant.UI.WebSites.SocialMedia;
 
-[WebSite("flock.social")]
+[WebSite("flock.social", Title = "Flock", Category = WebSiteCategory.NewsAndMedia)]
 public class SocialMediaWebSite : WebSite
 {
     private readonly ISocialService socialService;

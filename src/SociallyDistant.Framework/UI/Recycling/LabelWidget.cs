@@ -65,9 +65,10 @@ public sealed class TwoLineListItemWithIcon : Widget
 public sealed class LabelWidget : IWidget
 {
     public string Text { get; set; } = string.Empty;
+    public int? FontSize { get; set; }
     
     public RecyclableWidgetController Build()
     {
-        return new LabelWidgetController { LabelText = Text };
+        return new LabelWidgetController { LabelText = Text, FontSize = FontSize };
     }
 }

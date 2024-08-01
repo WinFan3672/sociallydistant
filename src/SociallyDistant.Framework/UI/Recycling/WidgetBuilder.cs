@@ -1,4 +1,5 @@
 using AcidicGUI.ListAdapters;
+using AcidicGUI.Widgets;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -38,6 +39,11 @@ public class WidgetBuilder
 		isBuilding = true;
 	}
 
+	public void AddLabel(string text, SectionWidget? section = null)
+	{
+		AddWidget(new LabelWidget { Text = text }, section);
+	}
+	
 	private void ThrowIfBuilding()
 	{
 		if (isBuilding)
@@ -84,6 +90,15 @@ public class WidgetBuilder
 		return this;
 	}
 
+	public WidgetBuilder AddWidget(IWidget widget, ISectionWidget? section)
+	{
+		if (section == null)
+			return AddWidget(widget);
+
+		section.AddWidget(widget);
+		return this;
+	}
+    
 	public WidgetBuilder AddWidget(IWidget widget, SectionWidget? section = null)
 	{
 		ThrowIfNotBuilding();

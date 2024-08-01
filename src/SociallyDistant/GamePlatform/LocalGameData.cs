@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Xna.Framework.Graphics;
 using SociallyDistant.Core;
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.Serialization.Binary;
 using SociallyDistant.Core.WorldData;

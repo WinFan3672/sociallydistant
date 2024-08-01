@@ -1,3 +1,4 @@
+using System.Reactive.PlatformServices;
 using AcidicGUI.ListAdapters;
 using AcidicGUI.Widgets;
 
@@ -9,6 +10,7 @@ public sealed class ListItemWidgetController<T> : RecyclableWidgetController
     
     public RecyclableWidgetController? Image { get; set; }
     public bool Selected { get; set; }
+    public string Description { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public T Data { get; set; } = default!;
     public Action<T>? Callback { get; set; }
@@ -24,6 +26,7 @@ public sealed class ListItemWidgetController<T> : RecyclableWidgetController
         
         listItem.Selected = Selected;
         listItem.Line1 = Title;
+        listItem.Line2 = Description;
         listItem.Callback = OnClick;
 
         destination.Content = listItem;

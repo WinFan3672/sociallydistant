@@ -81,8 +81,8 @@ public sealed class ToolManager
 			throw new InvalidOperationException("The Web Browser could not be found in the primary tool list.");
 		
 		// Brings the window into focus
-		SwitchTools(tool);
-
+		if (this.currentTool?.Definition is not WebBrowserTool)
+			SwitchTools(tool);
 		
 		// Actually does the navigation in the web browser.
 		var controller = ProgramController.Find<WebBrowserController>();

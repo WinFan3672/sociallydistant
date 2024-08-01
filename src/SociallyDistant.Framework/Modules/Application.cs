@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using AcidicGUI.Widgets;
 using Serilog;
 
 namespace SociallyDistant.Core.Modules;
@@ -46,8 +47,14 @@ public abstract class Application
             throw new InvalidOperationException("Socially Distant is already running.");
 
         started = true;
+
+        TextWidget.ImageLocator = new SociallyDistantImageLocator(Context);
+        
         DetermineHardwareData();
         Run();
+
+        TextWidget.ImageLocator = null;
+        
         started = false;
     }
     

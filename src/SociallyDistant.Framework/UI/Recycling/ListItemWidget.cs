@@ -6,6 +6,7 @@ public sealed class ListItemWidget<T> : IWidget
 {
     public IWidget? Image { get; set; }
     public bool Selected { get; set; }
+    public string Description { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public T Data { get; set; } = default!;
     public Action<T>? Callback { get; set; }
@@ -15,6 +16,7 @@ public sealed class ListItemWidget<T> : IWidget
     {
         var controller = new ListItemWidgetController<T>();
 
+        controller.Description = Description;
         controller.Image = Image?.Build();
         controller.Selected = Selected;
         controller.Title = Title;

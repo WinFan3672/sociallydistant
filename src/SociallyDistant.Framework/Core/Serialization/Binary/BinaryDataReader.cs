@@ -1,8 +1,6 @@
 ﻿#nullable enable
 
-using SociallyDistant.Core.Core.Serialization;
-
-namespace SociallyDistant.Core.Serialization.Binary
+namespace SociallyDistant.Core.Core.Serialization.Binary
 {
 	public class BinaryDataReader : IDataReader
 	{

@@ -2,6 +2,7 @@
 using System.Text;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.Serialization;
+using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.OS.Devices;
 using SociallyDistant.Core.OS.Network;
 using SociallyDistant.Core.OS.Network.MessageTransport;

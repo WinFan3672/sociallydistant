@@ -127,6 +127,12 @@ namespace SociallyDistant.GameplaySystems.Social
 		}
 
 		/// <inheritdoc />
+		public IEnumerable<IUserMessage> GetAllPosts()
+		{
+			return this.socialPostManager.GetAllPosts();
+		}
+
+		/// <inheritdoc />
 		public IEnumerable<IProfile> GetFriends(IProfile user)
 		{
 			foreach (WorldRelationshipData relationship in WorldManager.World.Relationships)
@@ -298,11 +304,29 @@ namespace SociallyDistant.GameplaySystems.Social
 		{
 			foreach (IUserMessage ownPost in GetSocialPosts(profile))
 				yield return ownPost;
-
-			foreach (IProfile follow in GetFollowing(profile))
+			
+			foreach (IProfile follow in GetWatching(profile))
 			{
 				foreach (IUserMessage post in GetSocialPosts(follow))
 					yield return post;
+			}
+		}
+
+		private IEnumerable<IProfile> GetWatching(IProfile watcher)
+		{
+			IProfile[] following = GetFollowing(watcher).ToArray();
+
+			foreach (IProfile profile in this.profiles.Values)
+			{
+				if (profile.ProfileId == watcher.ProfileId)
+					continue;
+
+				if (watcher.IsBlockedBy(profile))
+					continue;
+
+				var integral = watcher.ProfileId == PlayerProfile.ProfileId && profile.Attributes.HasFlag(CharacterAttributes.Integral);
+				if (integral || following.Contains(profile))
+					yield return profile;
 			}
 		}
 

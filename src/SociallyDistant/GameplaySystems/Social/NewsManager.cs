@@ -3,6 +3,7 @@ using SociallyDistant.Core;
 using SociallyDistant.Core.ContentManagement;
 using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.WorldData.Data;
+using SociallyDistant.Core.News;
 using SociallyDistant.Core.Social;
 
 namespace SociallyDistant.GameplaySystems.Social

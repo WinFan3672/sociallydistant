@@ -30,7 +30,8 @@
 		ComputersCanListen = 25,
 		CharacterAttributes = 26,
 		Articles = 27,
-		Checkpoints = 28,
+		SubDocuments = 28,
+		Checkpoints = 29,
 		
 		Latest
 	}

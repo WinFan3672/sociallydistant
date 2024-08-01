@@ -22,6 +22,7 @@ namespace SociallyDistant.Core.Core.Scripting
 		private readonly StringBuilder lineBuilder = new StringBuilder();
 		private readonly List<string> tokenList = new List<string>();
 		private readonly Queue<ShellInstruction> pendingInstructions = new Queue<ShellInstruction>();
+		private readonly ShellParseOptions options = new();
 		private ShellInstruction? currentInstruction = null;
 		private string title = "Terminal";
 		private readonly List<string> commandCompletions = new List<string>();
@@ -33,6 +34,8 @@ namespace SociallyDistant.Core.Core.Scripting
 			"echo"
 		};
 
+		public ShellParseOptions ParserOptions => options;
+		
 		/// <inheritdoc />
 		public bool IsExecutionHalted => currentInstruction != null;
 
@@ -340,7 +343,7 @@ namespace SociallyDistant.Core.Core.Scripting
 			// As such, we must do a more advanced tokenization of the raw input.
 			
 			// So let's do it.
-			IEnumerable<ShellToken>? typedTokens = ShellUtility.IdentifyTokens(nextLineToExecute);
+			IEnumerable<ShellToken>? typedTokens = ShellUtility.IdentifyTokens(nextLineToExecute, options);
 			
 			// Create a view over this array that we can advance during parsing
 			var view = new ArrayView<ShellToken>(typedTokens.ToArray());
@@ -363,7 +366,7 @@ namespace SociallyDistant.Core.Core.Scripting
 			// As such, we must do a more advanced tokenization of the raw input.
 			
 			// So let's do it.
-			IEnumerable<ShellToken>? typedTokens = ShellUtility.IdentifyTokens(scriptText);
+			IEnumerable<ShellToken>? typedTokens = ShellUtility.IdentifyTokens(scriptText, options);
 			
 			// Create a view over this array that we can advance during parsing
 			var view = new ArrayView<ShellToken>(typedTokens.ToArray());
