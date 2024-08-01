@@ -3,8 +3,6 @@ using SociallyDistant.Core.Modules;
 
 namespace SociallyDistant.GamePlatform
 {
-	
-	
 	public sealed class UriManager : IUriManager
 	{
 		private readonly SociallyDistantGame gameManager;

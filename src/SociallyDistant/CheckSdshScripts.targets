@@ -1,30 +1,14 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-
-    <!-- 
-      * This UsingTask element declares a custom MSBuild task named "ScriptValidatorTask".
-      
-      * It specifies the assembly file where the task is defined from the current file's  directory 
-    -->
+    
     <UsingTask
             TaskName="SdshScriptCheckTask"
             AssemblyFile="$(OutDir)/SociallyDistant.Framework.dll" />
 
-    <!-- 
-      * This defines a new MSBuild Target named "ValidateScripts".
-      
-      * The BeforeTargets attribute specifies that this target should run before the "Build" target, so we can validate
-        before a build is performed
-    -->
+    <UsingTask
+            TaskName="MarkdownPreprocessorTask"
+            AssemblyFile="$(OutDir)/SociallyDistant.Framework.dll" />
+
     <Target Name="ValidateScripts" AfterTargets="Build">
-        <!-- 
-          * This executes the custom ScriptValidatorTask that is in the SociallyDistant.Framework.dll assembly
-          
-          * It passes the  ShellScripts above as the ScriptPaths parameter.
-    
-          * ContinueOnError="false" means the build will stop if this task fails at any point
-    
-          * The Output element captures the task's ValidationResults output into an MSBuild property named ScriptValidationResults.
-        -->
         <SdshScriptCheckTask
                 ScriptsSource="$(MSBuildProjectDirectory)/Content"
                 ScriptsOutput="$(OutDir)Content/"
@@ -32,13 +16,16 @@
             <Output TaskParameter="Results" PropertyName="ScriptValidationResults" />
         </SdshScriptCheckTask>
 
-        <!-- 
-          This Error task will cause the build to fail if any script validation failed.
-          It checks the IsValid metadata of each ScriptValidationResults item.
-          If IsValid is false for any item, it displays an error message with the script's identity (path).
-        -->
         <Error
                 Text="Script validation failed for: %(ScriptValidationResults.Identity)"
                 Condition="'%(ScriptValidationResults.IsValid)' == 'false'" />
+    </Target>
+
+    <Target Name="ProcessMarkdown" AfterTargets="Build">
+        <MarkdownPreprocessorTask
+                Source="$(MSBuildProjectDirectory)/Content"
+                OutputPath="$(OutDir)Content"
+                ContinueOnError="false">
+        </MarkdownPreprocessorTask>
     </Target>
 </Project>

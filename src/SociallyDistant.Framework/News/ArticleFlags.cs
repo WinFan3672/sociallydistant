@@ -1,5 +1,5 @@
 #nullable enable
-namespace SociallyDistant.GameplaySystems.Social
+namespace SociallyDistant.Core.News
 {
 	[Flags]
 	public enum ArticleFlags : byte

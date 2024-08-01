@@ -81,7 +81,7 @@ namespace SociallyDistant
 			Context.ContentManager.AddContentSource<ExploitSource>();
 			Context.ContentManager.AddContentSource<PayloadSource>();
 			Context.ContentManager.AddContentSource<NpcSource>();
-			
+			Context.ContentManager.AddContentSource<NewsSource>();
 			
 			
 			// Watch system settings

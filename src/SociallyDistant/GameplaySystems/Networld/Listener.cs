@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using Serilog;
+using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.OS.Network;
 using SociallyDistant.Core.Serialization.Binary;
 

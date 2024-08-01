@@ -3,6 +3,7 @@ using System.Text;
 using Serilog;
 using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.Serialization;
+using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.Core.Systems;
 using SociallyDistant.Core.Core.WorldData.Data;
 using SociallyDistant.Core.DataManagement;

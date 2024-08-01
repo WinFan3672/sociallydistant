@@ -8,6 +8,7 @@ namespace SociallyDistant.Core.Social
 	{
 		IProfile PlayerProfile { get; }
 
+		IEnumerable<IUserMessage> GetAllPosts();
 		IEnumerable<IProfile> GetFriends(IProfile user);
 		IEnumerable<IProfile> GetFollowers(IProfile user);
 		IEnumerable<IProfile> GetFollowing(IProfile user);

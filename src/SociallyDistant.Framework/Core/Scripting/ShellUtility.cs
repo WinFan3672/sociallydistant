@@ -168,17 +168,14 @@ namespace SociallyDistant.Core.Core.Scripting
 			       || char.IsLetterOrDigit(character);
 		}
 		
-		public static IEnumerable<ShellToken> IdentifyTokens(string rawInput)
+		public static IEnumerable<ShellToken> IdentifyTokens(string rawInput, ShellParseOptions options)
 		{
 			var lastTokenStart = 0;
 			
 			// normalize line endings because nobody can fucking agree on a standard, god I hate this
 			string normalizedInput = rawInput.ReplaceLineEndings();
 			
-			// Convert the string to a char array so we can create an ArrayView over it.
-			char[] characters = normalizedInput.ToCharArray();
-
-			var charView = new ArrayView<char>(characters);
+			var charView = new StringView(normalizedInput);
 
 			// token currently being built
 			var tokenBuilder = new StringBuilder();
@@ -256,6 +253,16 @@ namespace SociallyDistant.Core.Core.Scripting
 						break;
 					}
 
+					case '|' when !options.ParsePipes:
+					case '>' when !options.ParseRedirection:
+					case '<' when !options.ParseRedirection:
+					case '\'' when !options.ParseExpansionStrings:	
+					case '"' when !options.ParseExpansionStrings:
+					{
+						tokenBuilder.Append(charView.Current);
+						break;
+					}
+					
 					case '\r':
 					{
 						// always ignored. Fuck carriage returns in the ass.
@@ -294,7 +301,7 @@ namespace SociallyDistant.Core.Core.Scripting
 					}
 
 					// Expansion string
-					case '"' when !inQuote:
+					case '"' when options.ParseExpansionStrings && !inQuote:
 					{
 						if (tokenBuilder.Length > 0)
 							yield return EndTextToken();
@@ -305,7 +312,7 @@ namespace SociallyDistant.Core.Core.Scripting
 					}
 
 					// String literal start
-					case '\'' when !inQuote:
+					case '\'' when options.ParseExpansionStrings && !inQuote:
 					{
 						quoteStart = charView.Current;
 						inQuote = true;
@@ -431,7 +438,7 @@ namespace SociallyDistant.Core.Core.Scripting
 					}
 					
 					// Pipe and logical OR
-					case '|' when !inQuote && !inExpansionString:
+					case '|' when options.ParsePipes && !inQuote && !inExpansionString:
 					{
 						if (tokenBuilder.Length > 0)
 							yield return EndTextToken();
@@ -449,7 +456,7 @@ namespace SociallyDistant.Core.Core.Scripting
 					}
 					
 					// Append to File
-					case '>' when charView.Next == charView.Current && !inQuote && !inExpansionString:
+					case '>' when options.ParseRedirection && charView.Next == charView.Current && !inQuote && !inExpansionString:
 					{
 						if (tokenBuilder.Length > 0)
 							yield return EndTextToken();
@@ -474,7 +481,7 @@ namespace SociallyDistant.Core.Core.Scripting
 					}
 
 					// Overwrite File
-					case '>' when !inQuote && !inExpansionString:
+					case '>' when options.ParseRedirection && !inQuote && !inExpansionString:
 					{
 						if (tokenBuilder.Length > 0)
 							yield return EndTextToken();
@@ -484,7 +491,7 @@ namespace SociallyDistant.Core.Core.Scripting
 					}
 					
 					// File Input
-					case '<' when !inQuote && !inExpansionString:
+					case '<' when options.ParseRedirection &&  !inQuote && !inExpansionString:
 					{
 						if (tokenBuilder.Length > 0)
 							yield return EndTextToken();
@@ -526,29 +533,5 @@ namespace SociallyDistant.Core.Core.Scripting
 			Start = start;
 			Length = length;
 		}
-	}
-
-	public enum ShellTokenType
-	{
-		Text,
-		Whitespace,
-		Pipe,
-		Overwrite,
-		Append,
-		FileInput,
-		ParallelExecute,
-		SequentialExecute,
-		VariableAccess,
-		AssignmentOperator,
-		OpenParen,
-		CloseParen,
-		OpenCurly,
-		CloseCurly,
-		OpenSquare,
-		ClosedSquare,
-		Newline,
-		LogicalAnd,
-		LogicalOr,
-		ExpansionString
 	}
 }

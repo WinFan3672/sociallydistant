@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using Silk.NET.SDL;
 using SociallyDistant.Architecture;
 using SociallyDistant.Core.Core;
+using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.Modules;
 using SociallyDistant.Core.OS.Devices;
 using SociallyDistant.Core.OS.Network;

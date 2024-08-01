@@ -27,7 +27,6 @@ public sealed class ScrollView :
 
     public ScrollView()
     {
-        LayoutRoot = this;
         ClippingMode = ClippingMode.Clip;
     }
     

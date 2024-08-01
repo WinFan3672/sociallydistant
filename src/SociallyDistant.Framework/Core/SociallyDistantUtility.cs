@@ -184,6 +184,34 @@ namespace SociallyDistant.Core.Core
 			};
 		}
 
+		public static string MakeSlug(ObjectId id, string title)
+		{
+			var sb = new StringBuilder();
+			var wasLastDash = false;
+
+			sb.Append(id.Id);
+
+			if (!string.IsNullOrWhiteSpace(title))
+				sb.Append("-");
+
+			foreach (char character in title)
+			{
+				if (char.IsLetterOrDigit(character))
+				{
+					wasLastDash = false;
+					sb.Append(character);
+					continue;
+				}
+
+				if (!wasLastDash)
+					sb.Append("-");
+
+				wasLastDash = true;
+			}
+
+			return sb.ToString();
+		}
+
 		public static PlayerLevelInfo GetPlayerLevelFromExperience(ulong experience)
 		{
 			var level = 0;

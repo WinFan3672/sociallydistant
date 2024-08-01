@@ -29,6 +29,12 @@ namespace SociallyDistant.GameplaySystems.Social
 			
 		}
 
+		public IEnumerable<IUserMessage> GetAllPosts()
+		{
+			foreach (IUserMessage post in this.posts.Values)
+				yield return post;
+		}
+		
 		private void OnModifySocialPost(WorldPostData subjectprevious, WorldPostData subjectnew)
 		{
 			if (!posts.TryGetValue(subjectnew.InstanceId, out SocialPost post))
