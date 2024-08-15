@@ -11,7 +11,7 @@ namespace SociallyDistant.Core.Serialization.Binary
 		private WorldRevisionComparer revisionComparer;
 		private IDataWriter? writer;
 		private IDataReader? reader;
-
+	
 		/// <inheritdoc />
 		public IRevisionComparer<WorldRevision> RevisionComparer => revisionComparer;
 

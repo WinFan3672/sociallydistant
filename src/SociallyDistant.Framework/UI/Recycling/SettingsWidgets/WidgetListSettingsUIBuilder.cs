@@ -68,7 +68,7 @@ public class WidgetListSettingsUiBuilder : ISettingsUiBuilder
 	public ISettingsUiBuilder WithSlider(
 		string title,
 		string? description,
-		float value,
+		int value,
 		int minimum,
 		int maximum,
 		Action<int> changeCallback,

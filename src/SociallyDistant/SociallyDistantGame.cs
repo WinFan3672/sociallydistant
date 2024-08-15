@@ -6,12 +6,14 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Serilog;
 using SociallyDistant.Architecture;
+using SociallyDistant.Audio;
 using SociallyDistant.Core;
 using SociallyDistant.Core.Config;
 using SociallyDistant.Core.Config.SystemConfigCategories;
 using SociallyDistant.Core.ContentManagement;
 using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.Config;
+using SociallyDistant.Core.Core.Events;
 using SociallyDistant.Core.Core.Scripting;
 using SociallyDistant.Core.Core.Serialization.Binary;
 using SociallyDistant.Core.Core.WorldData.Data;
@@ -82,6 +84,8 @@ internal sealed class SociallyDistantGame :
 	private readonly        MailManager                  mailManager;
 	private readonly        MissionManager               missionManager;
 	private readonly        EventBusImplementation       eventBus = new();
+	private readonly        MusicManager                 musicManager;
+	private readonly        SoundPlayer                  soundPlayer;
 	private                 bool                         areModulesLoaded;
 	private                 Task                         initializeTask;
 	private                 PlayerInfo                   playerInfo = new();
@@ -172,6 +176,8 @@ internal sealed class SociallyDistantGame :
 
 		var contentPipeline = new ContentPipeline(this);
 
+		this.musicManager = new MusicManager(this);
+		this.soundPlayer = new SoundPlayer(this);
 		this.backdrop = new BackdropController(this);
 		this.backdropUpdater = new BackdropUpdater(this);
 		this.devTools = new DevToolsManager(this);
@@ -190,6 +196,8 @@ internal sealed class SociallyDistantGame :
 		mailManager = new MailManager(this);
 		missionManager = new MissionManager(this);
 
+		Components.Add(soundPlayer);
+		Components.Add(musicManager);
 		Components.Add(screenshotHelper);
 		Components.Add(deviceCoordinator);
 		Components.Add(network);
@@ -474,6 +482,9 @@ internal sealed class SociallyDistantGame :
 	{
 		await EndCurrentGame(true);
 
+		// Test: You should hear background music in a Career build of the game, but not in the open-source build.
+		EventBus.Post(new PlaySongEvent("/Core/Career/Audio/BGM/PsyOp"));
+		
 		SetGameMode(GameMode.AtLoginScreen);
 	}
 

@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 namespace SociallyDistant.Core.UI.Recycling;
 
 public sealed class SliderWidgetController : RecyclableWidgetController
-{
+{   
     private Slider? slider;
     
     public float MinimumValue { get; set; }

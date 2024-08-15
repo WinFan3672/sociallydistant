@@ -2,8 +2,11 @@
 using System.Diagnostics;
 using System.Net.Mime;
 using Serilog.Core;
+using SociallyDistant.Audio;
+using SociallyDistant.Core.Audio;
 using SociallyDistant.Core.Config;
 using SociallyDistant.Core.Config.SystemConfigCategories;
+using SociallyDistant.Core.ContentManagement;
 using SociallyDistant.Core.Core;
 using SociallyDistant.Core.Core.Config;
 using SociallyDistant.Core.Core.Scripting;
@@ -20,6 +23,30 @@ using SociallyDistant.UI;
 
 namespace SociallyDistant
 {
+	public sealed class SoundSchemeFinder : IContentGenerator
+	{
+		public IEnumerable<IGameContent> CreateContent()
+		{
+			foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+			{
+				foreach (var type in assembly.GetTypes())
+				{
+					if (!type.IsAssignableTo(typeof(SoundScheme)))
+						continue;
+                    
+					if (type.GetConstructor(Type.EmptyTypes) == null)
+						continue;
+
+					var instance = Activator.CreateInstance(type, null) as SoundScheme;
+					if (instance == null)
+						continue;
+
+					yield return instance;
+				}
+			}
+		}
+	}
+	
 	/// <summary>
 	///		The system module. This is Socially Distant itself.
 	/// </summary>
@@ -60,6 +87,7 @@ namespace SociallyDistant
 			RegisterGlobalCommands();
 
 			// Game data
+			Context.ContentManager.AddContentGenerator(new SoundSchemeFinder());
 			Context.ContentManager.AddContentGenerator(new MissionTaskFinder());
 			Context.ContentManager.AddContentGenerator(new LifepathGenerator());
 			Context.ContentManager.AddContentGenerator(new CommandFinder(Context));
@@ -70,6 +98,7 @@ namespace SociallyDistant
 			Context.ContentManager.AddContentGenerator(this.serviceGenerator);
 			
 			// System settings modules
+			Context.SettingsManager.RegisterSettingsCategory<AudioSettings>();
 			graphicsSettings = Context.SettingsManager.RegisterSettingsCategory<GraphicsSettings>();
 			a11ySettings = Context.SettingsManager.RegisterSettingsCategory<AccessibilitySettings>();
 			uiSettings = Context.SettingsManager.RegisterSettingsCategory<UiSettings>();

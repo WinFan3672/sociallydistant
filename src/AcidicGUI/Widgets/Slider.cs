@@ -90,11 +90,11 @@ public sealed class Slider : Widget,
 
         if (direction == Direction.Vertical)
         {
-            SetValue(1 - MathHelper.Clamp(e.Position.Y - ContentArea.Top, 0, ContentArea.Height) / ContentArea.Height);
+            SetValue(1 - MathHelper.Clamp(e.Position.Y - ContentArea.Top, 0, ContentArea.Height) / (float) ContentArea.Height);
         }
         else
         {
-            SetValue(MathHelper.Clamp(e.Position.X - ContentArea.Left, 0, ContentArea.Width) / ContentArea.Width);
+            SetValue(MathHelper.Clamp(e.Position.X - ContentArea.Left, 0, ContentArea.Width) / (float) ContentArea.Width);
         }
         
         InvalidateGeometry();

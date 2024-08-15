@@ -98,4 +98,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Content\Career\" />
+  </ItemGroup>
+
 </Project>
