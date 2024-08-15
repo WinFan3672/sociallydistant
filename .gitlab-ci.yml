@@ -27,15 +27,3 @@ publish_linux:
     name: socially-distant-linux-amd64-release
     paths:
       - bin/linux-x64
-
-publish_windows:
-  stage: deploy
-  tags: [windows]
-  script: >
-    mkdir bin;
-    dotnet publish .\src\SociallyDistant -r win-x64 -c release --self-contained -o .\bin\windows-x64;
-  artifacts:
-    name: socially-distant-windows-x64-release
-    paths:
-      - bin/windows-x64
-
